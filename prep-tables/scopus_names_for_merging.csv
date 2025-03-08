@@ -1,0 +1,47 @@
+scopus_names,name_to
+authors,authors
+author full names,author full names
+author(s) id,author_scopus_id
+title,article title
+year,year
+source title,source title
+volume,volume
+issue,issue
+art. no.,IGNORE
+page start,start page
+page end,end page
+page count,page count
+cited by,times_cited
+doi,doi
+link,scopus_link
+affiliations,affiliations
+authors with affiliations,addresses
+abstract,abstract
+author keywords,author keywords
+index keywords,index_keywords_scopus
+funding details,funding details
+funding texts,funding text
+correspondence address,correspondence address
+editors,IGNORE
+publisher,publisher
+issn,issn
+isbn,isbn
+coden,IGNORE
+pubmed id,pubmed id
+language of original document,language
+abbreviated source title,IGNORE
+document type,document type
+publication stage,IGNORE
+open access,open access
+source,IGNORE
+eid,IGNORE
+molecular sequence numbers,IGNORE
+chemicals/cas,IGNORE
+tradenames,IGNORE
+manufacturers,IGNORE
+references,IGNORE
+sponsors,IGNORE
+conference name,conference name
+conference date,conference date
+conference location,conference location
+conference code,conference code

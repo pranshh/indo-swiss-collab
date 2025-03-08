@@ -1,0 +1,73 @@
+wos_names,name_to
+publication type,IGNORE
+authors,authors
+book authors,IGNORE
+book editors,IGNORE
+book group authors,IGNORE
+author full names,author full names
+book author full names,IGNORE
+group authors,IGNORE
+article title,article title
+source title,source title
+book series title,IGNORE
+book series subtitle,IGNORE
+language,language
+document type,document type
+conference title,IGNORE
+conference date,IGNORE
+conference location,IGNORE
+conference sponsor,IGNORE
+conference host,IGNORE
+author keywords,author keywords
+keywords plus,keywords_plus_wos
+abstract,abstract
+addresses,authors with affiliations
+affiliations,affiliations
+reprint addresses,correspondence address
+email addresses,email addresses
+researcher ids,reasearcherID_wos
+orcids,orcids
+funding orgs,funding details
+funding name preferred,IGNORE
+funding text,funding text
+cited references,IGNORE
+cited reference count,IGNORE
+"times cited, wos core",IGNORE
+"times cited, all databases",times_cited
+180 day usage count,IGNORE
+since 2013 usage count,IGNORE
+publisher,publisher
+publisher city,IGNORE
+publisher address,IGNORE
+issn,issn
+eissn,IGNORE
+isbn,isbn
+journal abbreviation,IGNORE
+journal iso abbreviation,IGNORE
+publication date,IGNORE
+publication year,year
+volume,volume
+issue,issue
+part number,IGNORE
+supplement,IGNORE
+special issue,IGNORE
+meeting abstract,IGNORE
+start page,IGNORE
+end page,IGNORE
+article number,IGNORE
+doi,doi
+doi link,IGNORE
+book doi,book_doi_wos
+early access date,IGNORE
+number of pages,page count
+wos categories,wos categories
+web of science index,IGNORE
+research areas,wos research areas
+ids number,IGNORE
+pubmed id,pubmed id
+open access designations,open access
+highly cited status,highly cited status
+hot paper status,hot paper status
+date of export,IGNORE
+ut (unique wos id),IGNORE
+web of science record,IGNORE
