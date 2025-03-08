@@ -1,0 +1,465 @@
+---
+title: "Indo-Swiss Research Database - Data import and processing log"
+output: html_notebook
+---
+
+This [R Markdown](http://rmarkdown.rstudio.com) Notebook is running and logging the import of data from raw CSV files and carrying out initial processing. It makes note of all analysis and cleaning decisions made while gathering the data.
+
+```{r Setup, echo=F}
+#This script imports from raw CSV files of Web of Science and Scopus
+rm(list = ls())
+source('core_utilities.R')
+using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2','readxl','readr','purrr','knitr','tibble')
+using('countries')
+
+
+```
+
+```{r Import data, echo = F, eval = F}
+
+#ONLY RUN THIS IF YOU HAVE NEW DATA TO ADD IN.
+
+# Importing from WoS -------------------------------
+
+#Importing from Web of Science export
+source.files = list.files(path = '~/Data/ISRD/source_data',pattern= 'wos',full.names =T, ignore.case = T)
+
+wosdat = tibble()
+for(i in source.files) {
+  dati = read_xls(i,col_types='text') #%>% mutate(sourcefile = i)
+  # print(i)
+  # print(sum(is.na(dati$Addresses)))
+  wosdat = bind_rows(wosdat,dati)
+}
+rm(dati,i)
+wosdat = distinct(wosdat)
+
+
+# Importing from Scopus ---------------------------------------------------
+
+source.files = list.files(path = '~/Data/ISRD/source_data',pattern= 'scopus',full.names =T,ignore.case = T)
+
+scodat = tibble()
+for(i in source.files) {
+  dati = read_csv(i,col_types = rep('c',46))
+  scodat = bind_rows(scodat,dati)
+}
+rm(dati,i)
+scodat = distinct(scodat)
+
+#Harmonise the names between different datasets
+names(wosdat) = tolower(names(wosdat))
+names(scodat) = tolower(names(scodat))
+
+
+#Get a list of column names to work with
+# cat(str_c(names(wosdat),collapse ='\n'))
+
+#Read the column matching tables
+wosnames = read.csv(file = 'prep-tables/wos_names_for_merging.csv')
+sconames = read.csv(file = 'prep-tables/scopus_names_for_merging.csv')
+
+# Identify the names to drop
+drop_names <- sconames %>% 
+  filter(name_to == "IGNORE") %>% 
+  pull(scopus_names)
+
+# Create a renaming vector for those not to ignore
+rename_vec <- sconames %>% 
+  filter(name_to != "IGNORE") %>% 
+  transmute(new = name_to,old = scopus_names) %>%
+  deframe()
+
+# Remove the columns and then rename
+scodat <- scodat %>% 
+  select(-one_of(drop_names)) %>% 
+  rename(!!!rename_vec)
+
+#Now do it for web of science
+# Identify the names to drop
+drop_names <- wosnames %>% 
+  filter(name_to == "IGNORE") %>% 
+  pull(wos_names)
+
+# Create a renaming vector for those not to ignore
+rename_vec <- wosnames %>% 
+  filter(name_to != "IGNORE") %>% 
+  transmute(new = name_to,old = wos_names) %>%
+  deframe()
+
+# Remove the columns and then rename
+wosdat <- wosdat %>% 
+  select(-one_of(drop_names)) %>% 
+  rename(!!!rename_vec)
+
+rm(wosnames,sconames,drop_names,rename_vec)
+
+#Check that they are Indo-Swiss collaborations
+# the column 'affiliations' in scopus contains the country
+# the column 'authors with affiliations' in web of science contains the country
+wosdat = wosdat %>% 
+  mutate(swiss = grepl('switzerland',`authors with affiliations`,ignore.case=T), india = grepl('india',`authors with affiliations`,ignore.case=T)) %>%
+  # mutate(swiss = grepl('switzerland',`addresses`,ignore.case=T), india = grepl('india',`addresses`,ignore.case=T)) %>%
+  mutate(collab = case_when((swiss & india) == T ~ 'Both',
+                            swiss == T ~ 'Swiss',
+                            india == T ~ 'India',
+                            .default = 'None'))
+if(any(wosdat$collab != 'Both')) {
+  printo('The Web of Science raw data includes papers that do not have both Indian and Swiss affiliations. Cleaning them out.')
+}
+# wosdat1 = wosdat %>% filter(collab != 'Both') %>% select(-swiss,-india,-collab)
+wosdat = wosdat %>% filter(collab == 'Both') %>% select(-swiss,-india,-collab)
+
+scodat = scodat %>% 
+  mutate(swiss = grepl('switzerland',affiliations,ignore.case=T), india = grepl('india',affiliations,ignore.case=T)) %>%
+  mutate(collab = case_when((swiss & india) == T ~ 'Both',
+                            swiss == T ~ 'Swiss',
+                            india == T ~ 'India',
+                            .default = 'None'))
+if(any(scodat$collab != 'Both')) {
+  printo('The Scopus raw data includes papers that do not have both Indian and Swiss affiliations. Cleaning them out.')
+}
+scodat = scodat %>% filter(collab == 'Both') %>% select(-swiss,-india,-collab)
+
+saveRDS(scodat,file = '~/Data/ISRD/raw_scopus.RData')
+saveRDS(wosdat,file = '~/Data/ISRD/raw_webofscience.RData')
+
+```
+
+```{r,eval=T, echo=F}
+scodat = readRDS(file = '~/Data/ISRD/raw_scopus.RData')
+wosdat = readRDS(file = '~/Data/ISRD/raw_webofscience.RData')
+```
+
+## Summaries of the initial data files
+
+```{r,eval=T, echo=F}
+
+printo("The Web of Science data consists of ",nrow(wosdat), " entries, ranging from ", min(wosdat$`year`), " to ", max(wosdat$`year`),".")
+printo()
+printo("The Scopus data consists of ",nrow(scodat), " entries, ranging from ", min(scodat$`year`), " to ", max(scodat$`year`),".")
+
+```
+
+We are now exploring how to match the datasets. One easy way to match is to use doi (digital object identifiers), which are created for this express purpose
+
+```{r doi for WoS Data, echo = F}
+
+
+printo('For the WoS data, ',sum(!is.na(wosdat$doi)), " out of ", nrow(wosdat), ' entries have a doi. That corresponds to ', round(sum(!is.na(wosdat$doi))/nrow(wosdat)*100),'%.')
+
+wosdat = wosdat %>% mutate(times_cited = as.numeric(times_cited), doi = tolower(doi))
+wos.doi = wosdat %>% filter(!is.na(doi))%>% group_by(doi) %>% summarise(count = n()) %>% arrange(desc(count)) %>% filter(count > 1)
+printo('Within this dataset, there are ',nrow(wos.doi),' dois that are not unique. Looking in and cleaning them.')
+wos.doi.forclean = wosdat %>% filter(!is.na(doi)) %>% filter(doi %in% wos.doi$doi) %>% arrange(doi)
+wos.doi = wosdat %>% filter(!is.na(doi)) %>% filter(!(doi %in% wos.doi$doi))
+
+printo()
+printo('Mostly these are situations where there are small variations and duplications. We clean these duplicates with the following rules - First prioritise those which have more citations, then which have more complete ORCID IDs.')
+
+wos.doi.cleaning = wos.doi.forclean %>% 
+  arrange(doi,desc(times_cited),desc(orcids)) %>% group_by(doi) %>% slice_head(n = 1)
+
+wos.doi = bind_rows(wos.doi, wos.doi.cleaning)
+rm(wos.doi.forclean,wos.doi.cleaning)
+printo()
+printo('These are cleaned now, and we have ',nrow(wos.doi),' publications with a unique doi from Web of Science.')
+
+
+printo()
+
+```
+
+```{r doi for Scopus data, echo = F}
+
+printo('For the Scopus data, ',sum(!is.na(scodat$doi)), " out of ", nrow(scodat), ' entries have a doi. That corresponds to ', round(sum(!is.na(scodat$doi))/nrow(scodat)*100),'%.')
+scodat = scodat %>% mutate(doi = tolower(doi))
+
+sco.doi = scodat %>% 
+  filter(!is.na(doi))%>% group_by(doi) %>% summarise(count = n()) %>% arrange(desc(count)) %>% filter(count > 1)
+printo('Within this dataset, there are ',nrow(sco.doi),' dois that are not unique. Looking into them deeper.')
+sco.doi.forclean = scodat %>% filter(!is.na(doi)) %>% filter(doi %in% sco.doi$doi) %>% arrange(doi)
+sco.doi = scodat %>% filter(!is.na(doi)) %>% filter(!(doi %in% sco.doi$doi))
+
+printo()
+printo('Mostly these are situations where the same authors have written the preface to a book and a chapter within the book, or where a publication is duplicated in some way. We clean these duplicates with the following rules - First prioritise those which have abstracts, then prioritise those which have more citations, then prioritise those that were published earlier.')
+
+sco.doi.forclean$abstract = na_if(sco.doi.forclean$abstract,"[No abstract available]")
+
+sco.doi.cleaning = sco.doi.forclean %>% mutate(isAbstract = is.na(abstract)) %>% arrange(doi,isAbstract,desc(times_cited),year) %>% group_by(doi) %>% slice_head(n = 1)
+
+sco.doi = bind_rows(sco.doi, sco.doi.cleaning)
+rm(sco.doi.forclean,sco.doi.cleaning)
+printo()
+printo('These are cleaned now, and we have ',nrow(sco.doi),' publications with a unique doi from Scopus.')
+
+```
+
+Now let us try to match the two databases based on doi
+
+```{r Matching those with doi, echo = F}
+
+  
+allentries = full_join(sco.doi %>% mutate(scopus = 2),wos.doi %>% mutate(wos = 1), by = 'doi',suffix = c('.s','.w')) %>%
+  mutate(scopus = replace_na(scopus,0), wos = replace_na(wos,0),
+         year.s = as.numeric(year.s), year.w=as.numeric(year.w)) %>%
+  mutate(datasource = as.character(scopus+wos)) %>%
+  mutate(datasource = case_match(datasource,
+                                 '3' ~ 'Both',
+                                 '2' ~ 'Scopus',
+                                 '1' ~ 'WoS',
+                                 '0' ~ 'None')) %>%
+  select(-wos,-scopus)
+allentries = allentries %>% select(order(colnames(allentries)))
+
+printo("When we match entries between the two databases using DOI, we find \n", sum(allentries$datasource == 'Both'), ' entries common to both databases\n',
+       sum(allentries$datasource == 'Scopus'), ' entries only in Scopus\n',
+       sum(allentries$datasource == 'WoS'), ' entries only in Web of Science.\n')
+
+# table(allentries$datasource)
+
+#Checking the status of matched vs unmatched entries
+# matched = allentries %>% filter(datasource == 'Both')
+# singles = allentries %>% filter(datasource != 'Both') %>% 
+#   mutate(`article title` = ifelse(is.na(`article title.w`),`article title.s`,`article title.w`), `document type` = ifelse(is.na(`document type.w`),`document type.s`,`document type.w`)) %>% 
+#   arrange(`article title`)
+# single.articles = singles %>% filter(grepl('article', `document type`,ignore.case = T))
+
+
+#Harmonise year and a few other columns between the two datasets
+allentries = allentries %>% mutate(year = pmin(year.s,year.w,na.rm=T), yeardiff = year.s-year.w,.keep = 'unused')
+# View(allentries %>% filter(abs(yeardiff)>1) %>% arrange(yeardiff))
+printo('There are ', sum(abs(allentries$yeardiff)>1, na.rm = T), ' matched papers where there is a difference of publication date of more than one year between the two datasets. We are glossing over this for now and just choosing the earlier year between the two for the publications.')
+
+# namescheck = allentries %>% filter(datasource == 'Both') %>% slice_sample(n = 200)
+
+#Remove redundancy in columns
+allentries = allentries %>%
+  #For article title and document type, prefer the one from scopus instead of WoS
+  mutate(`article title` = ifelse(is.na(`article title.s`),`article title.w`,`article title.s`), 
+         `document type` = ifelse(is.na(`document type.s`),`document type.w`,`document type.s`),
+         `publisher` = ifelse(is.na(`publisher.s`),`publisher.w`,`publisher.s`), 
+         `isbn` = ifelse(is.na(`isbn.s`),`isbn.w`,`isbn.s`),
+         `issn` = ifelse(is.na(`issn.s`),`issn.w`,`issn.s`),
+         `open access` = ifelse(is.na(`open access.s`),`open access.w`,`open access.s`),
+         `issue` = ifelse(is.na(`issue.s`),`issue.w`,`issue.s`),
+         `volume` = ifelse(is.na(`volume.s`),`volume.w`,`volume.s`),
+         `pubmed id` = ifelse(is.na(`pubmed id.s`),`pubmed id.w`,`pubmed id.s`),
+         `language` = ifelse(is.na(`language.s`),`language.w`,`language.s`),
+         `source title` = ifelse(is.na(`source title.s`),`source title.w`,`source title.s`),
+         .keep = 'unused') %>%
+  mutate(`page count` = pmax(as.numeric(`page count.s`),as.numeric(`page count.w`),na.rm=T),.keep = 'unused') %>% select(-yeardiff)
+
+printo("\nFor the fields - article title, document type, publisher, isbn, issn, issue, open access, volume, pubmed id, language, source title and page count - we are prefering the Scopus data to WoS, where there is a conflict.")
+
+printo("\nNow this dataset of ", nrow(allentries)," entries all with DOIs and matched between Scopus and Web of Science, is what we will take ahead for further analysis.")
+#choose a random sample of dois to figure out column meaning and matches
+# doisample = sample(matching$doi,30)
+# write_csv(sco.doi %>% filter(doi %in% doisample), file = 'scopus_data_example.csv')
+# write_csv(wos.doi %>% filter(doi %in% doisample), file = 'WebOfScience_data_example.csv')
+
+allentries = allentries %>% mutate(pubNum = row_number()) %>%
+  rename(addresses.s = addresses, addresses.w = `authors with affiliations`) %>% 
+  select(order(colnames(allentries)))
+
+saveRDS(allentries,file = '~/Data/ISRD/matched_data.rdata')
+
+rm(wosdat,wos.doi,scodat,sco.doi)
+```
+
+
+
+
+#Processing Author Information
+
+Both Scopus and Web of Science provide their own unique identifiers for authors. We need to process the author data from each database separately, and then combine them.
+
+```{r Starting author processing, echo = F}
+allentries = readRDS(file = '~/Data/ISRD/matched_data.rdata')
+allentries = allentries %>% slice_sample(n = 500)
+
+
+```
+
+First, processing the author data from Web of Science. 
+
+```{r Processing Web of Science author data, echo = F}
+
+dat1 = allentries %>% filter(datasource != 'Scopus') %>% select(pubNum,`author full names.w`,addresses = addresses.w) 
+
+allinst = tibble()
+
+for (i in 1:nrow(dat1)) {
+  # authors = dat1$`Author Full Names`[i] %>%
+  #   str_split(pattern =';',simplify=T) %>% str_trim()
+  inst = dat1$addresses[i] %>% str_split(pattern = '; \\[',simplify = T) %>% str_remove('^\\[')
+  inst = tibble(inst = inst) %>%
+    mutate(author = str_extract(inst,'^.*(?=\\])'), institution = str_extract(inst,'(?<=\\]).*') %>% str_trim()) %>%
+    # mutate(singleauthor = author %>% str_split(pattern = '; '))
+    separate_longer_delim(author,'; ') %>% select(-inst) %>% mutate(pubNum = dat1$pubNum[i])
+  allinst = bind_rows(allinst,inst)
+  rm(inst)
+}
+
+dat2 = dat1 %>%
+  separate_longer_delim(`author full names.w`,'; ') %>% rename(author = `author full names.w`) %>%
+  #ensure each author full name comes only once
+  distinct() %>%
+  left_join(allinst,by = join_by(pubNum, author), relationship = 'one-to-many') %>%
+  mutate(country = str_extract(institution, ',[^,]*$') %>% str_remove('^, ') %>% str_remove('\\(data truncated to fit\\)') %>% str_remove('.*(?=USA$)') %>% country_name(to = 'simple',verbose = T, na_fill = T))
+
+#For each author, count whether they are only Indian, Only Swiss or both
+byauth = dat2 %>% 
+  group_by(pubNum,author) %>% 
+  summarise(Swiss = any(country == 'Switzerland'),  India = any(country == 'India'),.groups = 'drop',nAuthCountries = length(unique(country))) %>%
+  mutate(auth_cat = case_when(Swiss & India ~ 'Both',
+                               Swiss ~ 'Swiss',
+                               India ~ 'India', .default = 'None'))
+
+authordat.w = dat2 %>% left_join(byauth %>% select(-Swiss,-India), by = join_by(pubNum,author)) %>% select(-addresses) %>%
+  nest(author_details = author:auth_cat,.by=pubNum)
+
+
+rm(allinst,byauth,dat1,dat2)
+
+
+
+```
+
+Second, processing the author data from Scopus. I still need to add in the Scopus ID of the author in this process
+
+
+```{r Now processing authors for Scopus}
+dat1 = allentries %>% filter(datasource != 'WoS') %>% select(pubNum,`authors.s`,`author full names.s`,addresses = addresses.s) 
+
+allinst = tibble()
+
+for (i in 1:nrow(dat1)) {
+  # authors = dat1$`Author Full Names`[i] %>%
+  #   str_split(pattern =';',simplify=T) %>% str_trim()
+  country_match = paste0(",\\s*(", paste(list_countries(), collapse="|"), "|United States)")
+  inst = dat1$addresses[i] %>% str_split(pattern = ';',simplify = T) %>% str_squish()
+  inst = tibble(inst = inst) %>%
+    mutate(author = str_extract(inst,'^[^,]+') %>% str_trim(), 
+           institution = str_extract(inst,'(?<=,).*') %>% str_trim()) %>%
+    #There is a problem. Scopus includes multiple institutions in the field for the same author, with no specific identifier separating them.
+    mutate(institution = str_replace_all(institution, country_match, ", \\1<<<SPLIT>>>") %>% str_remove('<<<SPLIT>>>$'))  %>%
+    # mutate(singleauthor = author %>% str_split(pattern = '; '))
+    separate_longer_delim(institution,'<<<SPLIT>>>') %>% 
+    mutate(institution = str_remove(institution, '^,') %>% str_trim())
+  inst = inst %>% 
+    select(-inst) %>% mutate(pubNum = dat1$pubNum[i])
+  allinst = bind_rows(allinst,inst)
+  rm(inst)
+}
+
+authors = dat1 %>% select(pubNum,author = authors.s) %>% separate_longer_delim(author,'; ')
+scopus_ids = dat1 %>% select(pubNum,aut = `author full names.s`) %>%
+  separate_longer_delim(aut,'; ') %>% 
+  mutate(scopus_id = str_extract(aut,"(?<=\\()[0-9]+(?=\\))")) %>% select(-aut)
+scopus_ids = cbind(authors,scopus_ids %>% select(-pubNum))# %>% distinct()
+rm(authors)
+
+dat2 = dat1 %>%
+  separate_longer_delim(`authors.s`,'; ') %>% rename(author = authors.s) %>%
+  bind_cols(scopus_ids %>% select(scopus_id)) %>% select(-`author full names.s`,-addresses) %>%
+  #ensure each author name comes only once
+  distinct() %>% 
+  # left_join(scopus_ids,by=c('pubNum','author'),relationship = 'one-to-one') %>%
+  left_join(allinst,by = join_by(pubNum, author), relationship = 'one-to-many') %>%
+  ## PROBLEM - the hugely coauthored papers are having multiple authors who have the same initials, but different scopus IDs, so it is not getting accurately mapped.
+  mutate(country = str_extract(institution, ',[^,]*$') %>% str_remove('^, ') %>%
+             #str_remove('\\(data truncated to fit\\)') %>% str_remove('.*(?=USA$)') %>%
+             country_name(to = 'simple',verbose = T, na_fill = T))
+  
+#For each author, count whether they are only Indian, Only Swiss or both
+byauth = dat2 %>% 
+  group_by(pubNum,author) %>% 
+  summarise(Swiss = any(country == 'Switzerland'),  India = any(country == 'India'),.groups = 'drop',nAuthCountries = length(unique(country))) %>%
+  mutate(auth_cat = case_when(Swiss & India ~ 'Both',
+                               Swiss ~ 'Swiss',
+                               India ~ 'India', .default = 'None'))
+
+authordat.s = dat2 %>% 
+  left_join(byauth %>% select(-Swiss,-India), by = join_by(pubNum,author)) %>% #select(-addresses) %>%
+  nest(author_details = author:auth_cat,.by=pubNum)
+
+rm(allinst,byauth,dat1,dat2)
+
+```
+
+
+```{r Combining and cleaning author data}
+
+#Give priority to Scopus author data over WoS author data
+dat1 = allentries %>% 
+  filter(datasource != 'WoS') %>%
+  left_join(authordat.s,by = 'pubNum')
+dat2 = allentries %>% 
+  filter(datasource == 'WoS') %>%
+  left_join(authordat.w,by = 'pubNum')
+dat = bind_rows(dat1,dat2)
+
+#Check that all rows have author details
+dat_filtered <- dat %>% 
+  filter(map_lgl(author_details, is.null))
+if(nrow(dat_filtered) != 0) {
+  printo('Warning: some entries have not gotten author details')
+  stop()
+}
+rm(dat_filtered, dat1,dat2)
+
+#Some Early cleaning
+# dat  = dat %>% filter(str_detect(`Document Type`,'^(Article|Review)'))
+
+#add in some additional details - 
+dat = dat |> mutate(nCountries = map_int(author_details, \(authors) length(unique(authors$country))),
+                      nAuthors = map_int(author_details, \(authors) length(unique(authors$author))),
+                      nInst = map_int(author_details, \(authors) length(unique(authors$institution))),
+                      nSwissInst = map_int(author_details, \(authors) authors %>% filter(country == 'Switzerland') %>% pull(institution) %>% unique() %>% length()),
+                      nIndInst = map_int(author_details, \(authors) authors %>% filter(country == 'India') %>% pull(institution) %>% unique() %>% length()),
+                      nSwissAuth = map_int(author_details, \(authors) authors %>% filter(country == 'Switzerland') %>% pull(author) %>% unique() %>% length()),
+                      nIndAuth = map_int(author_details, \(authors) authors %>% filter(country == 'India') %>% pull(author) %>% unique() %>% length()),
+                      nBothAuth = map_int(author_details, \(authors) authors %>% filter(auth_cat == 'Both') %>% pull(author) %>% unique() %>% length()))
+#For each author, count whether they are only Indian, Only Swiss or both
+
+if(any(dat$nCountries<1) | any(is.na(dat$nCountries))) {
+  printo('Warning some entries are not having data parsed down to country level.')
+}
+
+#Reduce duplication in columns
+dat1 = dat %>%
+  filter(datasource == 'WoS') %>%
+  rename(`author keywords` = `author keywords.w`, `correspondence address` = `correspondence address.w`) %>%
+  select(-`author keywords.s`, -`correspondence address.s`)
+
+saveRDS(dat,file = '~/Data/ISRD/matched_with_authors.RData')
+
+```
+
+
+
+
+
+
+
+<!-- Chunks that are not current priorities -->
+
+
+
+```{r Matching those without doi, echo = F, eval=F}
+
+
+printo('For the WoS data, ',sum(is.na(wosdat$doi)), " out of ", nrow(wosdat), ' entries do not have a doi. These are books or conference proceedings.')
+
+wos.nodoi = wosdat %>% filter(is.na(doi))
+#how many of these have unique ISSN or ISBN
+wos.isbn = wos.nodoi %>% filter(!is.na(ISBN)) %>% group_by(ISBN) %>% summarise(count = n()) %>% arrange(desc(count))
+table(wos.isbn$count)
+wos.issn = wos.nodoi %>% filter(!is.na(ISSN)) %>% group_by(ISSN) %>% summarise(count = n()) %>% arrange(desc(count))
+
+
+
+```
+
+
