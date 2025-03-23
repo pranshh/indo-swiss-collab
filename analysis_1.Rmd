@@ -1,0 +1,46 @@
+---
+title: "Indo-Swiss Research Database - Analysis log"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+
+```{r setup, echo=F, eval =T}
+rm(list = ls())
+source('core_utilities.R')
+using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2','readxl','readr','purrr','knitr','tibble')
+using('countries')
+
+paper.details = readRDS(file = '~/Data/ISRD/publication_details.RData')
+author.details = readRDS(file = '~/Data/ISRD/author_details.RData')
+
+tot.papers = nrow(paper.details)
+
+#report the data that we have
+printo('We have ',tot.papers,' publications pulled from Web of Science and Scopus in our analysis.')
+
+printo('The data sources of these publications are as follows - \n',round(sum(paper.details$datasource == 'Both')/tot.papers*100),"% available in both databases,\n",round(sum(paper.details$datasource == 'Scopus')/tot.papers*100),"% available only from Scopus,\n",round(sum(paper.details$datasource == 'WoS')/tot.papers*100),"% available only from Web of Science.\n")
+```
+
+
+#Which research areas are represented in this collaboration
+
+The first step is identifying what research area a particular paper belongs to. For this, Web of Science provides a much cleaner classification of papers into categories and research areas. This is done based on the journal that a paper has been published in.
+
+However, certain high impact multidisciplinary journals (listed below) 
+
+```{r finding research areas, echo=F, eval = T}
+
+paper.details$`source title` = str_to_title(paper.details$`source title`)
+
+printo("This is the list of journals that are counted as 'Multidisciplinary Sciences' according to the Web of Science classification")
+multi = paper.details %>% filter(`wos categories` == 'Multidisciplinary Sciences') %>% select(`source title`) %>% pull() %>% str_to_title() %>% unique()  %>% sort()
+cat(str_c(multi,collapse = '\n'))
+
+printo('This corresponds to a total of ', round(sum(paper.details$`wos categories` == 'Multidisciplinary Sciences', na.rm= T)/tot.papers*100),"% of the papers in our database")
+
+```
+
