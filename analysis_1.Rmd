@@ -14,8 +14,13 @@ source('core_utilities.R')
 using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2','readxl','readr','purrr','knitr','tibble')
 using('countries')
 
-paper.details = readRDS(file = '~/Data/ISRD/publication_details.RData')
-author.details = readRDS(file = '~/Data/ISRD/author_details.RData')
+paper.details = readRDS(file = 'Data/publication_details.RData')
+# author.details = readRDS(file = '~/Data/ISRD/author_details.RData')
+
+#Retain articles - remove letters, notes, errata
+#Document types are mostly derived from Scopus. Look at https://www.ilovephd.com/list-of-document-types-covered-in-scopus/ - for details of what they refer to
+paper.details = paper.details %>% filter((grepl('Article',`document type`) | `document type` %in% c('Book','Book chapter', 'Conference paper','Data paper','Editorial Material; Book Chapter','Proceedings Paper', 'Review', 'Short survey')) & !grepl('Retract', `document type`))
+
 
 tot.papers = nrow(paper.details)
 
@@ -23,14 +28,32 @@ tot.papers = nrow(paper.details)
 printo('We have ',tot.papers,' publications pulled from Web of Science and Scopus in our analysis.')
 
 printo('The data sources of these publications are as follows - \n',round(sum(paper.details$datasource == 'Both')/tot.papers*100),"% available in both databases,\n",round(sum(paper.details$datasource == 'Scopus')/tot.papers*100),"% available only from Scopus,\n",round(sum(paper.details$datasource == 'WoS')/tot.papers*100),"% available only from Web of Science.\n")
+
+
+
 ```
 
 
-#Which research areas are represented in this collaboration
+# How has the volume of collaboration changed over time?
 
-The first step is identifying what research area a particular paper belongs to. For this, Web of Science provides a much cleaner classification of papers into categories and research areas. This is done based on the journal that a paper has been published in.
+```{r graph of total pubs, echo = F, eval = T}
 
-However, certain high impact multidisciplinary journals (listed below) 
+dat.plot.all = paper.details %>% group_by(year) %>%
+  summarise(total.pubs = n()) %>% mutate(broad_category = 'All Fields') %>% filter(year <= 2024)
+
+ggplot(dat.plot.all, aes(x = year, y = total.pubs)) +
+  theme_bw() + geom_point() + geom_line() +
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2024',subtitle = 'Across all research fields', x = 'Year', y = 'Number of Publications')
+
+```
+
+
+
+# Which research areas are represented in this collaboration
+
+The first step is identifying what research area a particular paper belongs to. For this, Web of Science provides a much cleaner classification of papers into categories and research areas. This is done based on the journal that a paper has been published in. Scopus data doesn't provide anything at that level of aggregation, instead only providing keywords
+
+However, all articles in certain high impact multidisciplinary journals (listed below) do not get categorised by their subject, as the journal covers multiple topics.
 
 ```{r finding research areas, echo=F, eval = T}
 
@@ -41,6 +64,139 @@ multi = paper.details %>% filter(`wos categories` == 'Multidisciplinary Sciences
 cat(str_c(multi,collapse = '\n'))
 
 printo('This corresponds to a total of ', round(sum(paper.details$`wos categories` == 'Multidisciplinary Sciences', na.rm= T)/tot.papers*100),"% of the papers in our database")
+
+```
+
+For now, we don't worry about accurately classifying these 'Multidisciplinary Sciences' papers. We will later use AI algorithms to classify them into the category tree based on their keywords and abstract.
+
+As a first pass, we are going to categorise the 75% of articles with data available in the Web of Science into different disciplinary areas.
+
+```{r Categorising articles and seeing their changes, echo = F}
+
+woscat = read_csv('prep-tables/wos_category_classification.csv', show_col_types = F)
+dat1 = paper.details %>% filter(datasource != 'Scopus') %>% 
+  select(pubNum,year,`wos research areas`) %>%
+  separate_longer_delim(`wos research areas`,';') %>%
+  mutate(`wos research areas` = str_squish(`wos research areas`)) %>%
+  left_join(woscat,by = c("wos research areas" = 'research_area'))
+
+#Check that all research areas are getting matched.
+# dat1 %>% filter(is.na(broad_category)) %>% pull(`wos research areas`) %>% unique()
+
+#Now view all that have multiple broad categories for the same paper
+multiple_broad_cat = dat1 %>% select(pubNum, broad_category) %>% 
+  distinct() %>% group_by(pubNum) %>%
+  filter(n()>1) %>% pull(pubNum) %>% unique()
+dat2 = dat1 %>% #filter(pubNum %in% multiple_broad_cat) %>% 
+  select(pubNum,broad_category) %>% distinct() %>%
+  group_by(pubNum) %>% 
+  summarise(broad_category = str_c(broad_category,collapse = '; ')) %>%
+  mutate(life_sci_biomedicine = str_detect(broad_category,'Life Sciences'),
+         phy_sci = str_detect(broad_category,'Physical Sciences'),
+         tech = str_detect(broad_category,'Technology'),
+         soc_sci = str_detect(broad_category,'Social Sciences'),
+         arts_hum = str_detect(broad_category,'Humanities'))
+
+dat1 = paper.details %>% filter(datasource != 'Scopus') %>%
+  left_join(dat2,by = 'pubNum')
+
+printo('We have assigned broad categories to ',nrow(dat1),' publications based on the Web of Science categorisation.') 
+printo("The broad categories we are using are - ",str_c(unique(woscat$broad_category),collapse = ', '),". These have been provided by the Web of Science, from the ", length(unique(woscat$research_area)), " research areas represented in their database.")
+
+rm(woscat,dat2)
+
+```
+
+Let's make some visualisations of how publications in different categories have changed over time.
+
+```{r Visualising publications in different categories, echo = F}
+
+dat.yr = dat1 %>% group_by(year) %>%
+  summarise(life_sci_biomedicine = sum(life_sci_biomedicine),
+            phy_sci = sum(phy_sci),soc_sci = sum(soc_sci),
+            tech = sum(tech),arts_hum = sum(arts_hum)) %>%
+  rename(`Life Sciences & Biomedicine`=life_sci_biomedicine,
+         `Physical Sciences` = phy_sci,`Social Sciences` = soc_sci,
+         `Arts & Humanities` = arts_hum, `Technology` = tech) %>%
+  pivot_longer(`Life Sciences & Biomedicine`:`Arts & Humanities`,
+               names_to = 'broad_category', values_to = 'nPubs')
+  
+
+ggplot(data = dat.yr %>% filter(nPubs > 0 & year < 2019),aes(x = year, y = nPubs, color = broad_category)) +
+  theme_bw() + geom_line() + geom_point() +
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2019', x = 'Year', y = 'Number of Publications')
+ggsave('bytheme_linear.png', height = 6, width = 9)
+
+ggplot(dat.yr %>% filter(nPubs > 0 & year < 2019),aes(x = year, y = nPubs, color = broad_category)) +
+  theme_bw() + scale_y_log10() + geom_line() + geom_point() +
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2019', x = 'Year', y = 'Number of Publications (log transformed)')
+ggsave('bytheme_log.png', height = 6, width = 9)
+
+```
+
+This graph shows a sharp drop in publications during the year 2023, and a bit of a rise in 2024. However, we don't see that in the total numbers earlier, so this must be an artifact of using only Web of Science data. I need to re-download the Web of Science data from 2022-2024 just to be sure
+
+<!-- Is it an effect of the pandemic? [Kim 2024](https://www.escienceediting.org/journal/view.php?number=340) found a marked increase in publications during 2020 and 2021, with a decline after. -->
+
+Is there something wrong with the Web of Science data in 2023 and 2024? Yes, that does seem to be the case, as there are far more entries found only in Scopus during that period. 
+
+# How has the composition of research keywords changed over 25 years
+
+We examine all the papers in two 5 year periods - 2000-2004 and 2020-2024. In case author keywords are not provided for a paper, we have used the keywords that are generated by Web of Science or Scopus. Below are visualisations of the most common keywords using a word cloud.
+
+## Research keywords in the period of 2000 - 2004
+
+```{r Keywords at the start of the period, echo = F, warning = F, fig.height = 6, fig.width = 9}
+using('wordcloud', 'RColorBrewer')
+
+keywords_start = paper.details %>% filter(year >= 2000 & year <= 2004) %>%
+  select(year,`author keywords`,keywords_plus_wos,index_keywords_scopus) %>%
+  mutate(keywords = ifelse(!is.na(`author keywords`), 
+                           `author keywords`,
+                           ifelse(!is.na(keywords_plus_wos), 
+                                  keywords_plus_wos,
+                                  index_keywords_scopus))) %>%
+  filter(!is.na(keywords))
+
+printo('There are ',nrow(keywords_start),' publications with keywords in the 5 year period between 2000 and 2004')
+
+keylist1 = keywords_start %>% select(keywords) %>%
+  separate_longer_delim(keywords,delim = ';') %>% mutate(keywords = keywords %>% str_squish() %>% str_to_lower()) %>% group_by(keywords) %>% summarise(freq = n()) %>% arrange(desc(freq))
+
+wordcloud(words = keylist1$keywords, freq = keylist1$freq,scale = c(3,0.5),
+          max.words = 100, min.freq = keylist1$freq[1]/20, random.order = FALSE, rot.per = 0.35,         colors = brewer.pal(8, "Dark2"))
+
+rm(keywords_start,keylist1)
+
+```
+
+## Research in the period 2020 to 2024
+
+
+```{r Keywords at the end of the period, echo = F, warning=F, fig.height = 6, fig.width = 9}
+
+keywords_end = paper.details %>% filter(year >= 2020 & year <= 2024) %>%
+  select(year,`author keywords`,keywords_plus_wos,index_keywords_scopus) %>%
+  mutate(keywords = ifelse(!is.na(`author keywords`), 
+                           `author keywords`,
+                           ifelse(!is.na(keywords_plus_wos), 
+                                  keywords_plus_wos,
+                                  index_keywords_scopus))) %>% filter(!is.na(keywords))
+
+printo('There are ',nrow(keywords_end),' publications with keywords in the 5 year period between 2020 and 2024')
+
+
+keylist2 = keywords_end  %>% select(keywords) %>%
+  separate_longer_delim(keywords,delim = ';') %>% mutate(keywords = keywords %>% str_squish() %>% str_to_lower() %>% str_replace('^humans','human')) %>% group_by(keywords) %>% summarise(freq = (n())) %>% arrange(desc(freq)) %>%
+  filter(keywords != 'article')
+
+#human is the largest keyword by far, skewing the wordcloud, so we cut it down
+keylist2$freq[1] = keylist2$freq[2]
+
+wordcloud(words = keylist2$keywords, freq = keylist2$freq,scale = c(3,0.5),
+          max.words = 100, min.freq = keylist2$freq[1]/20, random.order = FALSE, rot.per = 0.35,         colors = brewer.pal(8, "Dark2"))
+
+rm(keywords_end,keylist2)
 
 ```
 

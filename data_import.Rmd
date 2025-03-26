@@ -473,8 +473,8 @@ paper.details = dat %>%
 author.details = dat %>%
   select(pubNum,datasource,author_details,`source title`,nAuthors:nSwissInst,`email addresses`,addresses.s,addresses.w)
 
-saveRDS(paper.details,file = '~/Data/ISRD/publication_details.RData')
-saveRDS(author.details,file = '~/Data/ISRD/author_details.RData')
+saveRDS(paper.details,file = 'Data/publication_details.RData')
+saveRDS(author.details,file = 'Data/author_details.RData')
 
 ```
 
