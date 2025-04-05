@@ -476,6 +476,10 @@ author.details = dat %>%
 saveRDS(paper.details,file = 'Data/publication_details.RData')
 saveRDS(author.details,file = 'Data/author_details.RData')
 
+library(arrow)
+write_feather(paper.details, 'Data/publication_details.feather', compression = 'zstd', compression_level = 5)
+write_feather(author.details, 'Data/author_details.feather', compression = 'zstd', compression_level = 5)
+
 ```
 
 

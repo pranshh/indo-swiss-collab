@@ -15,7 +15,6 @@ using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2
 using('countries')
 
 paper.details = readRDS(file = 'Data/publication_details.RData')
-# author.details = readRDS(file = '~/Data/ISRD/author_details.RData')
 
 #Retain articles - remove letters, notes, errata
 #Document types are mostly derived from Scopus. Look at https://www.ilovephd.com/list-of-document-types-covered-in-scopus/ - for details of what they refer to
@@ -199,4 +198,51 @@ wordcloud(words = keylist2$keywords, freq = keylist2$freq,scale = c(3,0.5),
 rm(keywords_end,keylist2)
 
 ```
+
+# Identifying the institutions conducting research
+
+```{r Mapping author data to institutions, echo = F, eval = T}
+
+author.details = readRDS(file = 'Data/author_details.RData')
+
+
+dat1 = author.details %>% unnest(author_details) 
+
+
+dat1 = dat1 %>% 
+  filter(country %in% c('India','Switzerland'))
+  # mutate(primary_institution = str_split(institution, ",", simplify = TRUE)[,1] %>% str_to_lower())
+
+swiss_inst_cleaned = read_csv(file = 'Data/institutions_standardized_output_swiss.csv', show_col_types = F) %>% select(-nPapers,-nAuth) #%>% rename(primary_institution = institution)
+
+dat2 = dat1 %>% filter(country == 'Switzerland') %>% left_join(swiss_inst_cleaned, by = join_by(datasource, institution, country)) %>%
+  rename(institution_std = `standardized name`)
+# View(dat2 %>% filter(`standardized name` == '---'))
+
+rm(dat1,swiss_inst_cleaned)
+
+```
+
+
+```{r Graph the change in publications for the different institutional domains, echo = F, eval = T}
+
+dat2 = dat2 %>% 
+  mutate(inst_group = 
+           ifelse(institution_std %in% c('University of Geneva - GE', 'University of Applied Sciences and Arts Western Switzerland - HES-SO', 'University of Berne - BE', 'University of Zurich - ZH', 'University of Basel - BS','University of Fribourg - FR', 'University of Lausanne - LA', 'University of Neuchatel - NE','University of Lucerne - LU','Università della Svizzera italiana - USI','University Hospital Basel - BS'),
+                  'Cantonal', 
+                  ifelse(institution_std %in% c('ETH Zurich - ETHZ','EPF Lausanne - EPFL'), 'ETH','Others')))
+
+dat2.1 = dat2 %>% 
+  left_join(paper.details %>% select(pubNum,year), by = 'pubNum') %>%
+  group_by(year,inst_group) %>%
+  summarise(num_publications = length(unique(pubNum)), .groups ='drop') %>%
+  filter(year < 2025)
+
+ggplot(data = dat2.1 %>% filter(inst_group!='Others'), mapping = aes(x = year, y = num_publications, color = inst_group)) +
+  theme_bw() + geom_line() + geom_point() +
+  labs(title = 'Joint Indo-Swiss publications between 2000 and 2024', x = 'Year', y = 'Number of Publications')
+ggsave('byinst.png', height = 6, width = 9)
+
+```
+
 
