@@ -7,9 +7,26 @@ import os
 
 app = Flask(__name__)
 
-df = pd.read_feather(os.path.join("data", "publication_details.feather"))
+import functools
 
-df = df.fillna('')
+@functools.lru_cache(maxsize=1)
+def get_df():
+    path = os.path.join("data", "publication_details.feather")
+    df = pd.read_feather(path)
+
+    # Fill NaNs early
+    df = df.fillna('')
+
+    # Downcast numerical columns
+    if 'year' in df.columns:
+        df['year'] = pd.to_numeric(df['year'], errors='coerce', downcast='integer')
+
+    # Convert low-cardinality string columns to categorical
+    for col in df.select_dtypes(include='object').columns:
+        if df[col].nunique() < 50:
+            df[col] = df[col].astype('category')
+
+    return df
 
 def parse_natural_query(query):
     """Parse natural language query into search parameters"""
@@ -73,9 +90,9 @@ def quick_search():
     query = request.form.get('query', '').strip()
     params = parse_natural_query(query)
     
-    # Use existing search logic with parsed parameters
+    df = get_df()
     mask = pd.Series([True] * len(df), index=df.index)
-    
+
     for key, value in params.items():
         if not value:
             continue
@@ -123,6 +140,7 @@ def search():
     }
 
     # Start with all rows
+    df = get_df()
     mask = pd.Series([True] * len(df), index=df.index)
 
     # Apply each non-empty parameter to the mask
@@ -174,6 +192,7 @@ def download():
     }
 
     # Start with all rows
+    df = get_df()
     mask = pd.Series([True] * len(df), index=df.index)
 
     # Apply each non-empty parameter to the mask
