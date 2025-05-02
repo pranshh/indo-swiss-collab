@@ -6,7 +6,7 @@ from fuzzywuzzy import process
 
 app = Flask(__name__)
 
-df = pd.read_feather("search-application\data\publication_details.feather")
+df = pd.read_feather("data\publication_details.feather")
 
 df = df.fillna('')
 
