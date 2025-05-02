@@ -3,10 +3,11 @@ import pandas as pd
 import re
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
+import os
 
 app = Flask(__name__)
 
-df = pd.read_feather("data\publication_details.feather")
+df = pd.read_feather(os.path.join("data", "publication_details.feather"))
 
 df = df.fillna('')
 
