@@ -5,9 +5,8 @@ import re
 import os
 
 app = Flask(__name__)
-
-conn = duckdb.connect(database=':memory:')
 DATA_PATH = os.path.join("data", "publication_details.parquet")
+RESULTS_PER_PAGE = 20  # Show 20 results per page
 
 def parse_natural_query(query):
     params = {
@@ -60,37 +59,37 @@ def parse_natural_query(query):
 
     return {k: v.strip() for k, v in params.items()}
 
-def build_duckdb_query(params, limit=True):
-    try:
-        conditions = []
-        if params.get('title'):
-            conditions.append(f"""lower("article title") LIKE '%{params['title'].lower()}%'""")
-        if params.get('authors'):
-            conditions.append(f"""(lower("author full names") LIKE '%{params['authors'].lower()}%' OR 
-                                 lower("authors") LIKE '%{params['authors'].lower()}%')""")
-        if params.get('abstract'):
-            conditions.append(
-                f"""(lower("abstract.s") LIKE '%{params['abstract'].lower()}%' OR 
-                    lower("abstract.w") LIKE '%{params['abstract'].lower()}%' OR 
-                    lower("article title") LIKE '%{params['abstract'].lower()}%')"""
-            )
-        if params.get('affiliations'):
-            conditions.append(f"""lower("affiliations") LIKE '%{params['affiliations'].lower()}%'""")
-        if params.get('doi'):
-            conditions.append(f"""lower("doi") LIKE '%{params['doi'].lower()}%'""")
-        if params.get('wos_categories'):
-            conditions.append(f"""lower("wos categories") LIKE '%{params['wos_categories'].lower()}%'""")
-        if params.get('year'):
-            if 'BETWEEN' in str(params['year']):
-                conditions.append(f""""year" {params['year']}""")
-            elif params['year'].startswith('>=') or params['year'].startswith('<='):
-                conditions.append(f""""year" {params['year']}""")
-            else:
-                conditions.append(f""""year" = {params['year']}""")
+def build_duckdb_query(params, page=1, limit=True):
+    conditions = []
+    if params.get('title'):
+        conditions.append(f"""lower("article title") LIKE '%{params['title'].lower()}%'""")
+    if params.get('authors'):
+        conditions.append(f"""(lower("author full names") LIKE '%{params['authors'].lower()}%' OR 
+                                lower("authors") LIKE '%{params['authors'].lower()}%')""")
+    if params.get('abstract'):
+        conditions.append(
+            f"""(lower("abstract.s") LIKE '%{params['abstract'].lower()}%' OR 
+                lower("abstract.w") LIKE '%{params['abstract'].lower()}%' OR 
+                lower("article title") LIKE '%{params['abstract'].lower()}%')"""
+        )
+    if params.get('affiliations'):
+        conditions.append(f"""lower("affiliations") LIKE '%{params['affiliations'].lower()}%'""")
+    if params.get('doi'):
+        conditions.append(f"""lower("doi") LIKE '%{params['doi'].lower()}%'""")
+    if params.get('wos_categories'):
+        conditions.append(f"""lower("wos categories") LIKE '%{params['wos_categories'].lower()}%'""")
+    if params.get('year'):
+        if 'BETWEEN' in str(params['year']):
+            conditions.append(f""""year" {params['year']}""")
+        elif params['year'].startswith('>=') or params['year'].startswith('<='):
+            conditions.append(f""""year" {params['year']}""")
+        else:
+            conditions.append(f""""year" = {params['year']}""")
 
-        where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
-        
-        query = f"""
+    where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+    query = f"""
+    WITH filtered_results AS (
         SELECT 
             "article title",
             "abstract.s",
@@ -105,15 +104,18 @@ def build_duckdb_query(params, limit=True):
             "year"
         FROM read_parquet('{DATA_PATH}')
         {where_clause}
-        """
+    )
+    SELECT 
+        *,
+        (SELECT COUNT(*) FROM filtered_results) as total_count
+    FROM filtered_results
+    """
         
-        if limit:
-            query += " LIMIT 100"
-        
-        return query
-    except Exception as e:
-        print(f"Error building query: {e}")
-        return None
+    if limit:
+        offset = (page - 1) * RESULTS_PER_PAGE
+        query += f" LIMIT {RESULTS_PER_PAGE} OFFSET {offset}"
+    
+    return query
 
 @app.route('/')
 def index():
@@ -134,6 +136,7 @@ def quick_search():
 @app.route('/search', methods=['POST'])
 def search():
     try:
+        page = int(request.form.get('page', 1))
         params = {
             'title': request.form.get('title', '').strip(),
             'authors': request.form.get('authors', '').strip(),
@@ -153,35 +156,45 @@ def search():
         elif year_to:
             params['year'] = f"<= {year_to}"
 
-        sql_query = build_duckdb_query(params, limit=True)
-        if sql_query is None:
+        sql_query = build_duckdb_query(params, page=page, limit=True)
+        conn = duckdb.connect(database=':memory:')
+        results = conn.execute(sql_query).fetchall()
+        
+        if not results:
             return render_template('results.html',
                                 query="Advanced Search",
                                 results=[],
-                                search_type="advanced",
-                                error="Error building query")
+                                total_count=0,
+                                current_page=page,
+                                total_pages=0,
+                                search_type="advanced")
 
-        df = conn.query(sql_query).df()
-        if df is None or df.empty:
-            return render_template('results.html',
-                                query="Advanced Search",
-                                results=[],
-                                search_type="advanced",
-                                error="No results found")
+        total_count = results[0][-1]  # Get total count from query
+        total_pages = (total_count + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE
 
-        results_data = df.to_dict(orient='records')
+        # Remove total_count from results
+        results_data = [dict(zip(
+            ['article title', 'abstract.s', 'abstract.w', 'affiliations', 
+             'author full names', 'authors', 'doi', 'scopus_link', 
+             'wos categories', 'wos research areas', 'year'],
+            row[:-1]
+        )) for row in results]
+
         return render_template('results.html',
                             query="Advanced Search",
                             results=results_data,
+                            total_count=total_count,
+                            current_page=page,
+                            total_pages=total_pages,
                             search_type="advanced")
+
     except Exception as e:
-        print(f"Error in search: {e}")
         return render_template('results.html',
                             query="Advanced Search",
                             results=[],
-                            search_type="advanced",
-                            error=str(e))
-
+                            error=str(e),
+                            search_type="advanced")
+    
 @app.route('/download', methods=['POST'])
 def download():
     params = {
