@@ -104,6 +104,70 @@
     .expandable:hover::after { opacity: 1; }
     .modal-body { max-height: 80vh; overflow-y: auto; }
     .highlight { background-color: yellow; }
+    @media (max-width: 767.98px) {
+            .navbar .navbar-brand {
+                font-size: 1.1rem;
+                padding-left: 0.5rem;
+            }
+            h3.mb-0, h3.mb-4 {
+                font-size: 1.2rem;
+            }
+            .table th, .table td {
+                font-size: 0.95rem;
+                padding: 0.5rem;
+            }
+            .btn, .btn-outline-primary, .btn-success {
+                font-size: 0.95rem !important;
+                padding: 0.5rem 0.8rem !important;
+            }
+            .badge {
+                font-size: 0.9rem;
+            }
+            .pagination .page-link {
+                font-size: 0.95rem;
+                padding: 0.4rem 0.7rem;
+            }
+            .modal-dialog {
+                max-width: 95vw;
+                margin: 1rem auto;
+            }
+        }
+        @media (max-width: 575.98px) {
+            .navbar .navbar-brand {
+                font-size: 1rem;
+            }
+            h3.mb-0, h3.mb-4 {
+                font-size: 1rem;
+            }
+            .table th, .table td {
+                font-size: 0.9rem;
+                padding: 0.35rem;
+            }
+            .btn, .btn-outline-primary, .btn-success {
+                font-size: 0.9rem !important;
+                padding: 0.4rem 0.6rem !important;
+            }
+            .badge {
+                font-size: 0.85rem;
+            }
+            .pagination .page-link {
+                font-size: 0.9rem;
+                padding: 0.3rem 0.5rem;
+            }
+            .modal-dialog {
+                max-width: 99vw;
+                margin: 0.5rem auto;
+            }
+        }
+        /* Make table horizontally scrollable on mobile */
+        @media (max-width: 991.98px) {
+            .table-responsive {
+                overflow-x: auto;
+            }
+            .table {
+                min-width: 700px;
+            }
+        }
     </style>
 </head>
 <body class="bg-light">
