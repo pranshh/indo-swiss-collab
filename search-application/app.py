@@ -76,8 +76,6 @@ def build_duckdb_query(params, page=1, limit=True):
         conditions.append(f"""lower("affiliations") LIKE '%{params['affiliations'].lower()}%'""")
     if params.get('doi'):
         conditions.append(f"""lower("doi") LIKE '%{params['doi'].lower()}%'""")
-    if params.get('wos_categories'):
-        conditions.append(f"""lower("wos categories") LIKE '%{params['wos_categories'].lower()}%'""")
     if params.get('year'):
         if 'BETWEEN' in str(params['year']):
             conditions.append(f""""year" {params['year']}""")
