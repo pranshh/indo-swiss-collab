@@ -4,17 +4,13 @@
     <meta charset="UTF-8">
     <title>Indo-Swiss Research Publications Database</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Include your CSS, fonts and icons here -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root {
-            --swiss-red: #ff0000;
-            --indian-orange: #FF9933;
-            --indian-green: #138808;
-            --navy: #1B1B3A;
-            --white: #ffffff;
+        body {
+            background-color: #f8f9fa;
         }
-
         .navbar {
             background: linear-gradient(45deg, #ff0000, #FF9933) !important;
             padding: 1rem;
@@ -23,7 +19,6 @@
             font-size: 1.5rem;
             color: #ffffff;
         }
-
         .card {
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             border: none;
@@ -32,139 +27,11 @@
             background: linear-gradient(45deg, #ff0000, #FF9933) !important;
             color: #ffffff;
         }
-
-        .btn-primary {
-            background-color: var(--swiss-red);
-            border-color: var(--swiss-red);
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--indian-orange);
-            border-color: var(--indian-orange);
-            transform: translateY(-2px);
-        }
-
-        .text-primary {
-            color: var(--swiss-red) !important;
-        }
-
-        .form-control:focus {
-            border-color: var(--swiss-red);
-            box-shadow: 0 0 0 0.25rem rgba(255, 0, 0, 0.25);
-        }
-
-        body {
-            background-color: #f8f9fa;
-            position: relative;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                linear-gradient(90deg, transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px)),
-                linear-gradient(transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px));
-            z-index: -1;
-            opacity: 0.4;
-        }
-
-        .card {
-            border: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, 
-                var(--swiss-red) 33%, 
-                var(--white) 33%, var(--white) 66%, 
-                var(--indian-orange) 66%);
-        }
-
-        .collaboration-banner {
-            background: linear-gradient(to right, rgba(255,0,0,0.1), rgba(255,153,51,0.1));
-            border-bottom: 2px solid var(--swiss-red);
-            padding: 10px 0;
-        }
-
-        .form-floating label {
-            color: var(--navy);
-        }
-
-        .custom-section {
-            padding: 2rem 0;
-        }
-
-        .scale-animation {
-            transition: transform 0.3s ease;
-        }
-
-        .scale-animation:focus-within {
-            transform: scale(1.02);
-        }
-
-        .year-range-card {
-            background: linear-gradient(to right, rgba(255,0,0,0.05), rgba(255,153,51,0.05));
-        }
-        @media (max-width: 767.98px) {
-            .navbar .navbar-brand {
-                font-size: 1.1rem;
-                padding-left: 0.5rem;
-            }
-            .custom-section {
-                padding: 1rem 0;
-            }
-            .card-header h4, .card-header h6 {
-                font-size: 1.1rem;
-            }
-            .card-body {
-                padding: 1rem !important;
-            }
-            .form-floating > label {
-                font-size: 0.95rem;
-            }
-            .btn-lg, .btn-primary {
-                font-size: 1rem !important;
-                padding: 0.75rem 1rem !important;
-            }
-            .year-range-card .card-body {
-                padding: 0.75rem !important;
-            }
-            .row.g-4 > [class^="col-"], .row.g-4 > [class*=" col-"] {
-                margin-bottom: 1rem;
-            }
-        }
-        @media (max-width: 575.98px) {
-            .navbar .navbar-brand {
-                font-size: 1rem;
-            }
-            .card-header h4, .card-header h6 {
-                font-size: 1rem;
-            }
-            .form-floating > label {
-                font-size: 0.9rem;
-            }
-            .btn-lg, .btn-primary {
-                font-size: 0.95rem !important;
-                padding: 0.6rem 0.8rem !important;
-            }
+        /* Adjust tooltip icon spacing */
+        .helper-icon {
+            margin-left: 0.5rem;
+            color: #6c757d;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -177,12 +44,13 @@
         </div>
     </nav>
 
+    <!-- Natural Language Search Section Only -->
     <div class="row justify-content-center mb-5 mt-4">
         <div class="col-md-10 col-lg-8">
             <div class="card scale-animation">
                 <div class="card-header py-3">
                     <h4 class="mb-0">
-                        <i class="fas fa-search me-2"></i> Search
+                        <i class="fas fa-search me-2"></i>Search
                     </h4>
                 </div>
                 <div class="card-body p-4">
@@ -191,19 +59,42 @@
                             <input type="text" class="form-control form-control-lg" 
                                    placeholder="Enter your search query..." 
                                    name="query" id="quick-search">
-                            <!-- Dropdown Filter -->
-                            <select class="form-select" name="filter_by" style="max-width: 8rem;">
+                            <!-- Helper icon for text input -->
+                            <span class="helper-icon" 
+                                  data-bs-toggle="tooltip" 
+                                  data-bs-placement="top" 
+                                  title="Enter your query using plain language (e.g., 'published after 2015'). The system interprets general queries and may not capture all nuances.">
+                                <i class="fas fa-question-circle"></i>
+                            </span>
+                            <!-- Extended Dropdown Filter -->
+                            <select class="form-select" name="filter_by" style="max-width: 10rem;">
                                 <option value="" selected>All</option>
                                 <option value="title">Title</option>
                                 <option value="abstract">Abstract</option>
                                 <option value="keywords">Keywords</option>
+                                <option value="authors">Authors</option>
+                                <option value="affiliations">Affiliations</option>
+                                <option value="doi">DOI</option>
                             </select>
+                            <!-- Helper icon for dropdown filter -->
+                            <span class="helper-icon" 
+                                  data-bs-toggle="tooltip" 
+                                  data-bs-placement="top" 
+                                  title="Select a filter to narrow your search: 
+Title: search only publication titles; 
+Abstract: search text within abstracts; 
+Keywords: search publication keywords; 
+Authors: search by researcher names; 
+Affiliations: search by institution names; 
+DOI: search exact publication identifiers.">
+                                <i class="fas fa-question-circle"></i>
+                            </span>
                             <button class="btn btn-primary" type="submit">
                                 <i class="fas fa-search"></i>
                             </button>
                         </div>
                         <small class="text-muted mt-2 d-block">
-                            Try entering natural language queries such as "published after 2015" or "papers on quantum computing".
+                            Use natural language queries such as "published after 2015" or "papers on quantum computing".
                         </small>
                     </form>
                 </div>
@@ -211,12 +102,14 @@
         </div>
     </div>
 
+    <!-- Disclaimer Section -->
     <div class="container mt-4">
         <div class="alert alert-info">
             <strong>Disclaimer:</strong> This is a beta version of the search interface to a database of all publications between 2000 - 2024 having author affiliations in both India and Switzerland. Publication metadata is obtained from Web of Science and Scopus. Data cleaning of institution names and research topics are still underway. Outputs from this have to be taken with a degree of care.
         </div>
     </div>
 
+    <!-- Optional Footer Section -->
     <footer class="py-3 border-top text-center">
         <div class="container">
             <span class="text-muted">© 2025 Indo-Swiss Research Publications Database</span>
@@ -224,5 +117,12 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    </script>
 </body>
 </html>
