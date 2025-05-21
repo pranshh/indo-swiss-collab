@@ -128,11 +128,12 @@
             }
             .pagination .page-link {
                 min-width: 2.5rem;
+                padding: 0.25rem 0.5rem;
                 text-align: center;
             }
             .modal-dialog {
-                max-width: 95vw;
-                margin: 1rem auto;
+                max-width: 99vw;
+                margin: 0.5rem auto;
             }
         }
         @media (max-width: 575.98px) {
@@ -171,9 +172,21 @@
                 min-width: 700px;
             }
         }
+    .highlight {
+        background-color: #fff3cd;
+        padding: 0.1em 0.2em;
+        border-radius: 0.2em;
+        font-weight: 500;
+    }
     </style>
 </head>
 <body class="bg-light">
+    <div class="container mt-3">
+        <div class="alert alert-info">
+            <strong>Disclaimer:</strong> This is a beta version of the search interface to a database of all publications between 2000 - 2024 having author affiliations in both India and Switzerland. Publication metadata is obtained from Web of Science and Scopus. Data cleaning of institution names and research topics are still underway. Outputs from this have to be taken with a degree of care.
+        </div>
+    </div>
+
     <nav class="navbar navbar-dark">
         <div class="container">
             <span class="navbar-brand mb-0 h1">
@@ -202,11 +215,11 @@
         </div>
 
         {% if error %}
-        <div class="alert alert-danger" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
         </div>
         {% endif %}
-
+        
         {% if results %}
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="form-inline">
@@ -237,16 +250,36 @@
                                     data-bs-toggle="modal" 
                                     data-bs-target="#detailModal" 
                                     data-content="{{ row['article title']|replace('"', '&quot;')|replace("'", '&#39;') }}">
-                                    {{ row['article title'] | truncate(100, True, '...') }}
+                                    {% if search_terms.get('title') %}
+                                        {{ row['article title'] | truncate(100, True, '...') | safe | replace(search_terms.title, '<span class="highlight">' + search_terms.title + '</span>') }}
+                                    {% else %}
+                                        {{ row['article title'] | truncate(100, True, '...') }}
+                                    {% endif %}
                                 </td>
                                 <td class="expandable" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#detailModal" 
                                     data-content="{{ row['abstract.s']|replace('"', '&quot;')|replace("'", '&#39;') }}">
-                                    {{ row['abstract.s'] | truncate(100, True, '...') }}
+                                    {% if search_terms.get('abstract') %}
+                                        {{ row['abstract.s'] | truncate(100, True, '...') | safe | replace(search_terms.abstract, '<span class="highlight">' + search_terms.abstract + '</span>') }}
+                                    {% else %}
+                                        {{ row['abstract.s'] | truncate(100, True, '...') }}
+                                    {% endif %}
                                 </td>
-                                <td>{{ row['affiliations'] | truncate(100, True, '...') }}</td>
-                                <td>{{ row['author full names'] | truncate(100, True, '...') }}</td>
+                                <td>
+                                    {% if search_terms.get('affiliations') %}
+                                        {{ row['affiliations'] | truncate(100, True, '...') | safe | replace(search_terms.affiliations, '<span class="highlight">' + search_terms.affiliations + '</span>') }}
+                                    {% else %}
+                                        {{ row['affiliations'] | truncate(100, True, '...') }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if search_terms.get('authors') %}
+                                        {{ row['author full names'] | truncate(100, True, '...') | safe | replace(search_terms.authors, '<span class="highlight">' + search_terms.authors + '</span>') }}
+                                    {% else %}
+                                        {{ row['author full names'] | truncate(100, True, '...') }}
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if row['doi'] %}
                                     <a href="https://doi.org/{{ row['doi'] }}" class="doi-link" target="_blank">
@@ -254,7 +287,13 @@
                                     </a>
                                     {% endif %}
                                 </td>
-                                <td>{{ row['wos categories'] }}</td>
+                                <td>
+                                    {% if search_terms.get('wos_categories') %}
+                                        {{ row['wos categories'] | safe | replace(search_terms.wos_categories, '<span class="highlight">' + search_terms.wos_categories + '</span>') }}
+                                    {% else %}
+                                        {{ row['wos categories'] }}
+                                    {% endif %}
+                                </td>
                                 <td>{{ row['year'] }}</td>
                             </tr>
                             {% endfor %}
@@ -416,6 +455,12 @@
                 pageInput.value = page;
                 form.submit();
             }
+        }
+
+        function highlightText(text, searchTerm) {
+            if (!searchTerm) return text;
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
         }
     </script>
 </body>
