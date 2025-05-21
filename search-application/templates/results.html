@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Search Results - Research Publications</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+            :root {
+        --swiss-red: #ff0000;
+        --indian-orange: #FF9933;
+        --indian-green: #138808;
+        --navy: #1B1B3A;
+    }
+
+    .navbar {
+        background: linear-gradient(45deg, var(--swiss-red), var(--indian-orange)) !important;
+    }
+
+    .table th { 
+        background-color: #f8f9fa;
+        border-bottom: 2px solid var(--swiss-red);
+    }
+
+    .btn-success {
+        background-color: var(--indian-green);
+        border-color: var(--indian-green);
+    }
+
+    .btn-outline-primary {
+        color: var(--swiss-red);
+        border-color: var(--swiss-red);
+    }
+
+    .btn-outline-primary:hover {
+        background-color: var(--swiss-red);
+        border-color: var(--swiss-red);
+    }
+
+    .badge.bg-primary {
+        background-color: var(--swiss-red) !important;
+    }
+
+    .table tr:hover {
+        background-color: rgba(255, 0, 0, 0.05) !important;
+    }
+
+    .doi-link {
+        color: var(--swiss-red);
+    }
+
+    /* Add Swiss-inspired cross pattern in background */
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            linear-gradient(90deg, transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px)),
+            linear-gradient(transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px));
+        z-index: -1;
+        opacity: 0.4;
+    }
+
+    .table-container {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .table-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                var(--swiss-red) 33%, 
+                white 33%, white 66%, 
+                var(--indian-orange) 66%);
+        }
+        .table th { background-color: #f8f9fa; }
+        .card { border: none; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
+        .btn-back { text-decoration: none; }
+        .table td { vertical-align: middle; }
+        .doi-link { color: #0d6efd; text-decoration: none; }
+        .doi-link:hover { text-decoration: underline; }
+        .table-container { border-radius: 8px; overflow: hidden; }
+        .table tr { transition: all 0.2s ease; }
+    .table tr:hover { background-color: rgba(13,110,253,0.05) !important; }
+    .expandable { cursor: pointer; position: relative; }
+    .expandable::after { 
+        content: '🔍';
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .expandable:hover::after { opacity: 1; }
+    .modal-body { max-height: 80vh; overflow-y: auto; }
+    .highlight { background-color: yellow; }
+    @media (max-width: 767.98px) {
+            .navbar .navbar-brand {
+                font-size: 1.1rem;
+                padding-left: 0.5rem;
+            }
+            h3.mb-0, h3.mb-4 {
+                font-size: 1.2rem;
+            }
+            .table th, .table td {
+                font-size: 0.95rem;
+                padding: 0.5rem;
+            }
+            .btn, .btn-outline-primary, .btn-success {
+                font-size: 0.95rem !important;
+                padding: 0.5rem 0.8rem !important;
+            }
+            .badge {
+                font-size: 0.9rem;
+            }
+            .pagination {
+                gap: 0.25rem;
+            }
+            .pagination .page-link {
+                min-width: 2.5rem;
+                text-align: center;
+            }
+            .modal-dialog {
+                max-width: 95vw;
+                margin: 1rem auto;
+            }
+        }
+        @media (max-width: 575.98px) {
+            .navbar .navbar-brand {
+                font-size: 1rem;
+            }
+            h3.mb-0, h3.mb-4 {
+                font-size: 1rem;
+            }
+            .table th, .table td {
+                font-size: 0.9rem;
+                padding: 0.35rem;
+            }
+            .btn, .btn-outline-primary, .btn-success {
+                font-size: 0.9rem !important;
+                padding: 0.4rem 0.6rem !important;
+            }
+            .badge {
+                font-size: 0.85rem;
+            }
+            .pagination .page-link {
+                min-width: 2rem;
+                padding: 0.25rem 0.5rem;
+            }
+            .modal-dialog {
+                max-width: 99vw;
+                margin: 0.5rem auto;
+            }
+        }
+        /* Make table horizontally scrollable on mobile */
+        @media (max-width: 991.98px) {
+            .table-responsive {
+                overflow-x: auto;
+            }
+            .table {
+                min-width: 700px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-search-plus me-2"></i>Indo-Swiss Research Publications Database
+            </span>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- Search Form for Pagination -->
+        <form id="searchForm" method="post" action="/search" class="d-none">
+            {% for key, value in request.form.items() %}
+                {% if key != 'page' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endfor %}
+        </form>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="mb-0">
+                <i class="fas fa-list me-2"></i>Search Results
+            </h3>
+            <a href="/" class="btn btn-outline-primary">
+                <i class="fas fa-search me-2"></i>New Search
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        {% if results %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-inline">
+                    <input type="text" id="tableSearch" class="form-control form-control-sm" 
+                           placeholder="Filter results...">
+                </div>
+                <span class="badge bg-primary" id="resultCount"></span>
+            </div>
+
+            <div class="card table-container">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-heading me-2"></i>Title</th>
+                                <th><i class="fas fa-file-alt me-2"></i>Abstract</th>
+                                <th><i class="fas fa-university me-2"></i>Institute Affiliations</th>
+                                <th><i class="fas fa-users me-2"></i>Authors</th>
+                                <th><i class="fas fa-fingerprint me-2"></i>DOI</th>
+                                <th><i class="fas fa-tags me-2"></i>WoS Categories</th>
+                                <th><i class="fas fa-calendar me-2"></i>Year</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results %}
+                            <tr>
+                                <td class="expandable" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#detailModal" 
+                                    data-content="{{ row['article title']|replace('"', '&quot;')|replace("'", '&#39;') }}">
+                                    {{ row['article title'] | truncate(100, True, '...') }}
+                                </td>
+                                <td class="expandable" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#detailModal" 
+                                    data-content="{{ row['abstract.s']|replace('"', '&quot;')|replace("'", '&#39;') }}">
+                                    {{ row['abstract.s'] | truncate(100, True, '...') }}
+                                </td>
+                                <td>{{ row['affiliations'] | truncate(100, True, '...') }}</td>
+                                <td>{{ row['author full names'] | truncate(100, True, '...') }}</td>
+                                <td>
+                                    {% if row['doi'] %}
+                                    <a href="https://doi.org/{{ row['doi'] }}" class="doi-link" target="_blank">
+                                        {{ row['doi'] }}
+                                    </a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row['wos categories'] }}</td>
+                                <td>{{ row['year'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% if total_pages and total_pages > 1 %}
+            <nav aria-label="Search results pages" class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <!-- First and Previous buttons -->
+                    <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                        <button class="page-link" onclick="changePage(1)" {% if current_page == 1 %}disabled{% endif %}>
+                            <i class="fas fa-angle-double-left"></i>
+                        </button>
+                    </li>
+                    <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                        <button class="page-link" onclick="changePage({{ current_page - 1 }})" {% if current_page == 1 %}disabled{% endif %}>
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+                    </li>
+
+                    <!-- First pages -->
+                    {% if current_page > 4 %}
+                        <li class="page-item">
+                            <button class="page-link" onclick="changePage(1)">1</button>
+                        </li>
+                        {% if current_page > 5 %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+
+                    <!-- Pages around current page -->
+                    {% for p in range(current_page - 2, current_page + 3) %}
+                        {% if p > 0 and p <= total_pages %}
+                            <li class="page-item {% if p == current_page %}active{% endif %}">
+                                <button class="page-link" onclick="changePage({{ p }})">{{ p }}</button>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    <!-- Last pages -->
+                    {% if current_page < total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        <li class="page-item">
+                            <button class="page-link" onclick="changePage({{ total_pages }})">{{ total_pages }}</button>
+                        </li>
+                    {% endif %}
+
+                    <!-- Next and Last buttons -->
+                    <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                        <button class="page-link" onclick="changePage({{ current_page + 1 }})" {% if current_page == total_pages %}disabled{% endif %}>
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                    </li>
+                    <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                        <button class="page-link" onclick="changePage({{ total_pages }})" {% if current_page == total_pages %}disabled{% endif %}>
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+
+            <div class="mt-4">
+                <form action="/download" method="post">
+                    {% for key, value in request.form.items() %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-download me-2"></i>Download All Results
+                    </button>
+                </form>
+            </div>
+        {% else %}
+            <div class="alert alert-warning" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>No results found.
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detailed View</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Table search functionality
+            const searchInput = document.getElementById('tableSearch');
+            const tableRows = Array.from(document.querySelectorAll('tbody tr'));
+            const resultCount = document.getElementById('resultCount');
+
+            function updateResultCount() {
+                const visibleRows = tableRows.filter(row => !row.classList.contains('d-none')).length;
+                if (resultCount) {
+                    resultCount.textContent = `Showing ${visibleRows} results`;
+                }
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    tableRows.forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            row.classList.remove('d-none');
+                        } else {
+                            row.classList.add('d-none');
+                        }
+                    });
+                    updateResultCount();
+                });
+            }
+
+            // Modal functionality for expandable cells
+            const detailModal = document.getElementById('detailModal');
+            if (detailModal) {
+                const modalBody = detailModal.querySelector('.modal-body');
+                document.querySelectorAll('.expandable').forEach(cell => {
+                    cell.addEventListener('click', function() {
+                        const content = this.getAttribute('data-content');
+                        if (modalBody && content) {
+                            modalBody.innerHTML = `<p class="lead" style="white-space:pre-line;">${content}</p>`;
+                        }
+                    });
+                });
+            }
+
+            // Initialize result count on page load
+            updateResultCount();
+        });
+
+        // Pagination handler
+        function changePage(page) {
+            const form = document.getElementById('searchForm');
+            if (form) {
+                let pageInput = form.querySelector('input[name="page"]');
+                if (!pageInput) {
+                    pageInput = document.createElement('input');
+                    pageInput.type = 'hidden';
+                    pageInput.name = 'page';
+                    form.appendChild(pageInput);
+                }
+                pageInput.value = page;
+                form.submit();
+            }
+        }
+    </script>
+</body>
+</html>
