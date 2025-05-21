@@ -19,7 +19,7 @@ using('countries')
 
 ```
 
-```{r Import data, echo = F, eval = F}
+```{r Import data, echo = F, eval = T}
 
 #ONLY RUN THIS IF YOU HAVE NEW DATA TO ADD IN.
 
@@ -265,7 +265,8 @@ printo("\nNow this dataset of ", nrow(allentries)," entries all with DOIs and ma
 allentries = allentries %>% mutate(pubNum = row_number()) %>%
   rename(addresses.s = addresses, addresses.w = `authors with affiliations`) 
 allentries = allentries %>% 
-  select(order(colnames(allentries)))
+  select(order(colnames(allentries))) %>%
+  filter(year < 2025)
 
 saveRDS(allentries,file = '~/Data/ISRD/matched_data.rdata')
 
@@ -402,7 +403,7 @@ rm(allinst,byauth,dat1,dat2)
 
 ```
 
-Now we need to proceed to combine the author data between the two datasets. We are choosing to prioritise data from Scopus over data from Web of Science, as it has a wider coverage, and is easier to obtain. In case information on a particular publication is not available in Scopus, we will get it from Web of Science.
+Now we need to proceed to combine the author data between the two datasets. We are choosing to prioritise data from Web of Science over data from Scopus. This is because Scopus author data includes multiple institutional affiliations for the author in the same cell with no clear separator. Thus the Web of Science data is easier to clean. In case information on a particular publication is not available in Web of Science, we will get it from Scopus.
 
 ```{r Combining and cleaning author data, echo = F, eval = T}
 
@@ -412,7 +413,7 @@ authordat.s = readRDS(file='~/Data/ISRD/authordat_scopus.rdata')
 
 allentries = readRDS(file = '~/Data/ISRD/matched_data.rdata')
 
-#Give priority to WoS author data over Scopus author data
+#Give priority to WoS author data over Scopus author data, because Scopus is messier
 dat1 = allentries %>% 
   filter(datasource == 'Scopus') %>%
   left_join(authordat.s,by = 'pubNum')
@@ -494,9 +495,9 @@ dat1 = dat1 %>%
   summarise(nPapers = length(unique(pubNum)), nAuth = length(unique(author)), .groups = 'drop') %>%
   arrange(country,desc(nPapers))
 
-write_csv(dat1,file = 'institutions_for_cleaning_20250314.csv')
+write_csv(dat1,file = 'institutions_for_cleaning_20250417.csv')
 
-dat2 = dat2 %>% 
+dat2 = dat1 %>% 
   mutate(primary_institution = str_split(institution, ",", simplify = TRUE)[,1] %>% str_to_lower())
 
 # Group by primary institution and summarize the data

@@ -46,7 +46,24 @@ ggplot(dat.plot.all, aes(x = year, y = total.pubs)) +
 
 ```
 
+### How does this compare to global publications
 
+```{r}
+
+global.dat = read.csv('Data/Scopus 1900-2020.csv')
+global.dat = global.dat %>% select(year = Publication.year, Num_global_articles = All.articles..left.axis.)
+
+dat.plot.all = left_join(dat.plot.all,global.dat,by='year')
+
+ggplot(dat.plot.all, aes(x = year, y = total.pubs)) +
+  theme_bw() + geom_point() + geom_line(color = 'red') + scale_y_log10() +
+  geom_line(mapping = aes(x = year, y = Num_global_articles), color = 'black') +
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2024',subtitle = 'Across all research fields', x = 'Year', y = 'Number of Publications')
+
+
+```
+
+The total number of publications that are coauthored by Indian and Swiss researchers has increased from 93 in year 2000 to 1242 in year 2020, which is a 13-fold increase over 20 years. In the same amount of time, the number of publications indexed within Scopus increased from 0.9 million publications, to 2.5 million. This is only a 2.8 fold increase ^[Data of total number of entries in Scopus by year is gotten from Mike Thelwall, Pardeep Sud; Scopus 1900–2020: Growth in articles, abstracts, countries, fields, and journals. Quantitative Science Studies 2022; 3 (1): 37–50. doi: https://doi.org/10.1162/qss_a_00177]. 
 
 # Which research areas are represented in this collaboration
 
@@ -121,23 +138,22 @@ dat.yr = dat1 %>% group_by(year) %>%
                names_to = 'broad_category', values_to = 'nPubs')
   
 
-ggplot(data = dat.yr %>% filter(nPubs > 0 & year < 2019),aes(x = year, y = nPubs, color = broad_category)) +
+ggplot(data = dat.yr %>% filter(nPubs > 0 & year < 2025),aes(x = year, y = nPubs, color = broad_category)) +
   theme_bw() + geom_line() + geom_point() +
-  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2019', x = 'Year', y = 'Number of Publications')
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2024', x = 'Year', y = 'Number of Publications')
 ggsave('bytheme_linear.png', height = 6, width = 9)
 
-ggplot(dat.yr %>% filter(nPubs > 0 & year < 2019),aes(x = year, y = nPubs, color = broad_category)) +
+ggplot(dat.yr %>% filter(nPubs > 0 & year < 2025),aes(x = year, y = nPubs, color = broad_category)) +
   theme_bw() + scale_y_log10() + geom_line() + geom_point() +
-  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2019', x = 'Year', y = 'Number of Publications (log transformed)')
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2024', x = 'Year', y = 'Number of Publications (log transformed)')
 ggsave('bytheme_log.png', height = 6, width = 9)
 
 ```
 
-This graph shows a sharp drop in publications during the year 2023, and a bit of a rise in 2024. However, we don't see that in the total numbers earlier, so this must be an artifact of using only Web of Science data. I need to re-download the Web of Science data from 2022-2024 just to be sure
+This graph shows a drop in publications in the physical sciences during the year 2023, and a bit of a rise in 2024. Maybe this is due to the pandemic. 
 
 <!-- Is it an effect of the pandemic? [Kim 2024](https://www.escienceediting.org/journal/view.php?number=340) found a marked increase in publications during 2020 and 2021, with a decline after. -->
 
-Is there something wrong with the Web of Science data in 2023 and 2024? Yes, that does seem to be the case, as there are far more entries found only in Scopus during that period. 
 
 # How has the composition of research keywords changed over 25 years
 

@@ -1,154 +1,154 @@
-broad_category,research_area
-Arts & Humanities ,Architecture
-Arts & Humanities ,Art
-Arts & Humanities ,Arts & Humanities Other Topics
-Arts & Humanities ,Asian Studies
-Arts & Humanities ,Classics
-Arts & Humanities ,Dance
-Arts & Humanities ,"Film, Radio & Television"
-Arts & Humanities ,History
-Arts & Humanities ,History & Philosophy of Science
-Arts & Humanities ,Literature
-Arts & Humanities ,Music
-Arts & Humanities ,Philosophy
-Arts & Humanities ,Religion
-Arts & Humanities ,Theater
-Life Sciences & Biomedicine ,Agriculture
-Life Sciences & Biomedicine ,Allergy
-Life Sciences & Biomedicine ,Anatomy & Morphology
-Life Sciences & Biomedicine ,Anesthesiology
-Life Sciences & Biomedicine ,Anthropology
-Life Sciences & Biomedicine ,Audiology & Speech-Language Pathology
-Life Sciences & Biomedicine ,Behavioral Sciences
-Life Sciences & Biomedicine ,Biochemistry & Molecular Biology
-Life Sciences & Biomedicine ,Biodiversity & Conservation
-Life Sciences & Biomedicine ,Biophysics
-Life Sciences & Biomedicine ,Biotechnology & Applied Microbiology
-Life Sciences & Biomedicine ,Cardiovascular System & Cardiology
-Life Sciences & Biomedicine ,Cell Biology
-Life Sciences & Biomedicine ,Critical Care Medicine
-Life Sciences & Biomedicine ,"Dentistry, Oral Surgery & Medicine"
-Life Sciences & Biomedicine ,Dermatology
-Life Sciences & Biomedicine ,Developmental Biology
-Life Sciences & Biomedicine ,Emergency Medicine
-Life Sciences & Biomedicine ,Endocrinology & Metabolism
-Life Sciences & Biomedicine ,Entomology
-Life Sciences & Biomedicine ,Environmental Sciences & Ecology
-Life Sciences & Biomedicine ,Evolutionary Biology
-Life Sciences & Biomedicine ,Fisheries
-Life Sciences & Biomedicine ,Food Science & Technology
-Life Sciences & Biomedicine ,Forestry
-Life Sciences & Biomedicine ,Gastroenterology & Hepatology
-Life Sciences & Biomedicine ,General & Internal Medicine
-Life Sciences & Biomedicine ,Genetics & Heredity
-Life Sciences & Biomedicine ,Geriatrics & Gerontology
-Life Sciences & Biomedicine ,Health Care Sciences & Services
-Life Sciences & Biomedicine ,Hematology
-Life Sciences & Biomedicine ,Immunology
-Life Sciences & Biomedicine ,Infectious Diseases
-Life Sciences & Biomedicine ,Integrative & Complementary Medicine
-Life Sciences & Biomedicine ,Legal Medicine
-Life Sciences & Biomedicine ,Life Sciences Biomedicine Other Topics
-Life Sciences & Biomedicine ,Marine & Freshwater Biology
-Life Sciences & Biomedicine ,Mathematical & Computational Biology
-Life Sciences & Biomedicine ,Medical Ethics
-Life Sciences & Biomedicine ,Medical Informatics
-Life Sciences & Biomedicine ,Medical Laboratory Technology
-Life Sciences & Biomedicine ,Microbiology
-Life Sciences & Biomedicine ,Mycology
-Life Sciences & Biomedicine ,Neurosciences & Neurology
-Life Sciences & Biomedicine ,Nursing
-Life Sciences & Biomedicine ,Nutrition & Dietetics
-Life Sciences & Biomedicine ,Obstetrics & Gynecology
-Life Sciences & Biomedicine ,Oncology
-Life Sciences & Biomedicine ,Ophthalmology
-Life Sciences & Biomedicine ,Orthopedics
-Life Sciences & Biomedicine ,Otorhinolaryngology
-Life Sciences & Biomedicine ,Paleontology
-Life Sciences & Biomedicine ,Parasitology
-Life Sciences & Biomedicine ,Pathology
-Life Sciences & Biomedicine ,Pediatrics
-Life Sciences & Biomedicine ,Pharmacology & Pharmacy
-Life Sciences & Biomedicine ,Physiology
-Life Sciences & Biomedicine ,Plant Sciences
-Life Sciences & Biomedicine ,Psychiatry
-Life Sciences & Biomedicine ,"Public, Environmental & Occupational Health"
-Life Sciences & Biomedicine ,"Radiology, Nuclear Medicine & Medical Imaging"
-Life Sciences & Biomedicine ,Rehabilitation
-Life Sciences & Biomedicine ,Reproductive Biology
-Life Sciences & Biomedicine ,Research & Experimental Medicine
-Life Sciences & Biomedicine ,Respiratory System
-Life Sciences & Biomedicine ,Rheumatology
-Life Sciences & Biomedicine ,Sport Sciences
-Life Sciences & Biomedicine ,Substance Abuse
-Life Sciences & Biomedicine ,Surgery
-Life Sciences & Biomedicine ,Toxicology
-Life Sciences & Biomedicine ,Transplantation
-Life Sciences & Biomedicine ,Tropical Medicine
-Life Sciences & Biomedicine ,Urology & Nephrology
-Life Sciences & Biomedicine ,Veterinary Sciences
-Life Sciences & Biomedicine ,Virology
-Life Sciences & Biomedicine ,Zoology
-Physical Sciences ,Astronomy & Astrophysics
-Physical Sciences ,Chemistry
-Physical Sciences ,Crystallography
-Physical Sciences ,Electrochemistry
-Physical Sciences ,Geochemistry & Geophysics
-Physical Sciences ,Geology
-Physical Sciences ,Mathematics
-Physical Sciences ,Meteorology & Atmospheric Sciences
-Physical Sciences ,Mineralogy
-Physical Sciences ,Mining & Mineral Processing
-Physical Sciences ,Oceanography
-Physical Sciences ,Optics
-Physical Sciences ,Physical Geography
-Physical Sciences ,Physics
-Physical Sciences ,Polymer Science
-Physical Sciences ,Thermodynamics
-Physical Sciences ,Water Resources
-Social Sciences ,Archaeology
-Social Sciences ,Area Studies
-Social Sciences ,Biomedical Social Sciences
-Social Sciences ,Business & Economics
-Social Sciences ,Communication
-Social Sciences ,Criminology & Penology
-Social Sciences ,Cultural Studies
-Social Sciences ,Demography
-Social Sciences ,Development Studies
-Social Sciences ,Education & Educational Research
-Social Sciences ,Ethnic Studies
-Social Sciences ,Family Studies
-Social Sciences ,Geography
-Social Sciences ,Government & Law
-Social Sciences ,International Relations
-Social Sciences ,Linguistics
-Social Sciences ,Mathematical Methods In Social Sciences
-Social Sciences ,Psychology
-Social Sciences ,Public Administration
-Social Sciences ,Social Issues
-Social Sciences ,Social Sciences Other Topics
-Social Sciences ,Social Work
-Social Sciences ,Sociology
-Social Sciences ,Urban Studies
-Social Sciences ,Women's Studies
-Technology ,Acoustics
-Technology ,Automation & Control Systems
-Technology ,Computer Science
-Technology ,Construction & Building Technology
-Technology ,Energy & Fuels
-Technology ,Engineering
-Technology ,Imaging Science & Photographic Technology
-Technology ,Information Science & Library Science
-Technology ,Instruments & Instrumentation
-Technology ,Materials Science
-Technology ,Mechanics
-Technology ,Metallurgy & Metallurgical Engineering
-Technology ,Microscopy
-Technology ,Nuclear Science & Technology
-Technology ,Operations Research & Management Science
-Technology ,Remote Sensing
-Technology ,Robotics
-Technology ,Science & Technology Other Topics
-Technology ,Spectroscopy
-Technology ,Telecommunications
-Technology ,Transportation
+broad_category,research_area,analysis_group
+Arts & Humanities ,Architecture,none
+Arts & Humanities ,Art,none
+Arts & Humanities ,Arts & Humanities - Other Topics,none
+Arts & Humanities ,Asian Studies,none
+Arts & Humanities ,Classics,none
+Arts & Humanities ,Dance,none
+Arts & Humanities ,"Film, Radio & Television",none
+Arts & Humanities ,History,none
+Arts & Humanities ,History & Philosophy of Science,none
+Arts & Humanities ,Literature,none
+Arts & Humanities ,Music,none
+Arts & Humanities ,Philosophy,none
+Arts & Humanities ,Religion,none
+Arts & Humanities ,Theater,none
+Life Sciences & Biomedicine ,Agriculture,none
+Life Sciences & Biomedicine ,Allergy,none
+Life Sciences & Biomedicine ,Anatomy & Morphology,none
+Life Sciences & Biomedicine ,Anesthesiology,none
+Life Sciences & Biomedicine ,Anthropology,none
+Life Sciences & Biomedicine ,Audiology & Speech-Language Pathology,none
+Life Sciences & Biomedicine ,Behavioral Sciences,none
+Life Sciences & Biomedicine ,Biochemistry & Molecular Biology,none
+Life Sciences & Biomedicine ,Biodiversity & Conservation,none
+Life Sciences & Biomedicine ,Biophysics,none
+Life Sciences & Biomedicine ,Biotechnology & Applied Microbiology,none
+Life Sciences & Biomedicine ,Cardiovascular System & Cardiology,none
+Life Sciences & Biomedicine ,Cell Biology,none
+Life Sciences & Biomedicine ,Critical Care Medicine,none
+Life Sciences & Biomedicine ,"Dentistry, Oral Surgery & Medicine",none
+Life Sciences & Biomedicine ,Dermatology,none
+Life Sciences & Biomedicine ,Developmental Biology,none
+Life Sciences & Biomedicine ,Emergency Medicine,none
+Life Sciences & Biomedicine ,Endocrinology & Metabolism,none
+Life Sciences & Biomedicine ,Entomology,none
+Life Sciences & Biomedicine ,Environmental Sciences & Ecology,none
+Life Sciences & Biomedicine ,Evolutionary Biology,none
+Life Sciences & Biomedicine ,Fisheries,none
+Life Sciences & Biomedicine ,Food Science & Technology,none
+Life Sciences & Biomedicine ,Forestry,none
+Life Sciences & Biomedicine ,Gastroenterology & Hepatology,none
+Life Sciences & Biomedicine ,General & Internal Medicine,none
+Life Sciences & Biomedicine ,Genetics & Heredity,none
+Life Sciences & Biomedicine ,Geriatrics & Gerontology,none
+Life Sciences & Biomedicine ,Health Care Sciences & Services,none
+Life Sciences & Biomedicine ,Hematology,none
+Life Sciences & Biomedicine ,Immunology,none
+Life Sciences & Biomedicine ,Infectious Diseases,none
+Life Sciences & Biomedicine ,Integrative & Complementary Medicine,none
+Life Sciences & Biomedicine ,Legal Medicine,none
+Life Sciences & Biomedicine ,Life Sciences & Biomedicine - Other Topics,none
+Life Sciences & Biomedicine ,Marine & Freshwater Biology,none
+Life Sciences & Biomedicine ,Mathematical & Computational Biology,none
+Life Sciences & Biomedicine ,Medical Ethics,none
+Life Sciences & Biomedicine ,Medical Informatics,none
+Life Sciences & Biomedicine ,Medical Laboratory Technology,none
+Life Sciences & Biomedicine ,Microbiology,none
+Life Sciences & Biomedicine ,Mycology,none
+Life Sciences & Biomedicine ,Neurosciences & Neurology,none
+Life Sciences & Biomedicine ,Nursing,none
+Life Sciences & Biomedicine ,Nutrition & Dietetics,none
+Life Sciences & Biomedicine ,Obstetrics & Gynecology,none
+Life Sciences & Biomedicine ,Oncology,none
+Life Sciences & Biomedicine ,Ophthalmology,none
+Life Sciences & Biomedicine ,Orthopedics,none
+Life Sciences & Biomedicine ,Otorhinolaryngology,none
+Life Sciences & Biomedicine ,Paleontology,none
+Life Sciences & Biomedicine ,Parasitology,none
+Life Sciences & Biomedicine ,Pathology,none
+Life Sciences & Biomedicine ,Pediatrics,none
+Life Sciences & Biomedicine ,Pharmacology & Pharmacy,none
+Life Sciences & Biomedicine ,Physiology,none
+Life Sciences & Biomedicine ,Plant Sciences,none
+Life Sciences & Biomedicine ,Psychiatry,none
+Life Sciences & Biomedicine ,"Public, Environmental & Occupational Health",none
+Life Sciences & Biomedicine ,"Radiology, Nuclear Medicine & Medical Imaging",none
+Life Sciences & Biomedicine ,Rehabilitation,none
+Life Sciences & Biomedicine ,Reproductive Biology,none
+Life Sciences & Biomedicine ,Research & Experimental Medicine,none
+Life Sciences & Biomedicine ,Respiratory System,none
+Life Sciences & Biomedicine ,Rheumatology,none
+Life Sciences & Biomedicine ,Sport Sciences,none
+Life Sciences & Biomedicine ,Substance Abuse,none
+Life Sciences & Biomedicine ,Surgery,none
+Life Sciences & Biomedicine ,Toxicology,none
+Life Sciences & Biomedicine ,Transplantation,none
+Life Sciences & Biomedicine ,Tropical Medicine,none
+Life Sciences & Biomedicine ,Urology & Nephrology,none
+Life Sciences & Biomedicine ,Veterinary Sciences,none
+Life Sciences & Biomedicine ,Virology,none
+Life Sciences & Biomedicine ,Zoology,none
+Physical Sciences ,Astronomy & Astrophysics,none
+Physical Sciences ,Chemistry,none
+Physical Sciences ,Crystallography,none
+Physical Sciences ,Electrochemistry,none
+Physical Sciences ,Geochemistry & Geophysics,none
+Physical Sciences ,Geology,none
+Physical Sciences ,Mathematics,none
+Physical Sciences ,Meteorology & Atmospheric Sciences,none
+Physical Sciences ,Mineralogy,none
+Physical Sciences ,Mining & Mineral Processing,none
+Physical Sciences ,Oceanography,none
+Physical Sciences ,Optics,none
+Physical Sciences ,Physical Geography,none
+Physical Sciences ,Physics,none
+Physical Sciences ,Polymer Science,none
+Physical Sciences ,Thermodynamics,none
+Physical Sciences ,Water Resources,none
+Social Sciences ,Archaeology,none
+Social Sciences ,Area Studies,none
+Social Sciences ,Biomedical Social Sciences,none
+Social Sciences ,Business & Economics,none
+Social Sciences ,Communication,none
+Social Sciences ,Criminology & Penology,none
+Social Sciences ,Cultural Studies,none
+Social Sciences ,Demography,none
+Social Sciences ,Development Studies,none
+Social Sciences ,Education & Educational Research,none
+Social Sciences ,Ethnic Studies,none
+Social Sciences ,Family Studies,none
+Social Sciences ,Geography,none
+Social Sciences ,Government & Law,none
+Social Sciences ,International Relations,none
+Social Sciences ,Linguistics,none
+Social Sciences ,Mathematical Methods In Social Sciences,none
+Social Sciences ,Psychology,none
+Social Sciences ,Public Administration,none
+Social Sciences ,Social Issues,none
+Social Sciences ,Social Sciences - Other Topics,none
+Social Sciences ,Social Work,none
+Social Sciences ,Sociology,none
+Social Sciences ,Urban Studies,none
+Social Sciences ,Women's Studies,none
+Technology ,Acoustics,none
+Technology ,Automation & Control Systems,none
+Technology ,Computer Science,none
+Technology ,Construction & Building Technology,none
+Technology ,Energy & Fuels,none
+Technology ,Engineering,none
+Technology ,Imaging Science & Photographic Technology,none
+Technology ,Information Science & Library Science,none
+Technology ,Instruments & Instrumentation,none
+Technology ,Materials Science,none
+Technology ,Mechanics,none
+Technology ,Metallurgy & Metallurgical Engineering,none
+Technology ,Microscopy,none
+Technology ,Nuclear Science & Technology,none
+Technology ,Operations Research & Management Science,none
+Technology ,Remote Sensing,none
+Technology ,Robotics,none
+Technology ,Science & Technology - Other Topics,none
+Technology ,Spectroscopy,none
+Technology ,Telecommunications,none
+Technology ,Transportation,none

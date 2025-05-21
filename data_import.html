@@ -1629,56 +1629,213 @@ and processing log</h1>
 is running and logging the import of data from raw CSV files and
 carrying out initial processing. It makes note of all analysis and
 cleaning decisions made while gathering the data.</p>
+<pre><code>## The Web of Science raw data includes papers that do not have both Indian and Swiss affiliations. Cleaning them out.</code></pre>
 <div id="summaries-of-the-initial-data-files" class="section level2">
 <h2>Summaries of the initial data files</h2>
-<pre><code>## The Web of Science data consists of 15806 entries, ranging from 2000 to 2024.</code></pre>
+<pre><code>## The Web of Science data consists of 18657 entries, ranging from 2000 to 2025.</code></pre>
 <pre><code>## The Scopus data consists of 17229 entries, ranging from 2000 to 2025.</code></pre>
 <p>We are now exploring how to match the datasets. One easy way to match
 is to use doi (digital object identifiers), which are created for this
 express purpose</p>
-<pre><code>## For the WoS data, 13969 out of 15806 entries have a doi. That corresponds to 88%.</code></pre>
-<pre><code>## Within this dataset, there are 38 dois that are not unique. Looking in and cleaning them.</code></pre>
+<pre><code>## For the WoS data, 16529 out of 18657 entries have a doi. That corresponds to 89%.</code></pre>
+<pre><code>## Within this dataset, there are 515 dois that are not unique. Looking in and cleaning them.</code></pre>
 <pre><code>## Mostly these are situations where there are small variations and duplications. We clean these duplicates with the following rules - First prioritise those which have more citations, then which have more complete ORCID IDs.</code></pre>
-<pre><code>## These are cleaned now, and we have 13931 publications with a unique doi from Web of Science.</code></pre>
+<pre><code>## These are cleaned now, and we have 16012 publications with a unique doi from Web of Science.</code></pre>
 <pre><code>## For the Scopus data, 16493 out of 17229 entries have a doi. That corresponds to 96%.</code></pre>
 <pre><code>## Within this dataset, there are 27 dois that are not unique. Looking into them deeper.</code></pre>
 <pre><code>## Mostly these are situations where the same authors have written the preface to a book and a chapter within the book, or where a publication is duplicated in some way. We clean these duplicates with the following rules - First prioritise those which have abstracts, then prioritise those which have more citations, then prioritise those that were published earlier.</code></pre>
 <pre><code>## These are cleaned now, and we have 16466 publications with a unique doi from Scopus.</code></pre>
 <p>Now let us try to match the two databases based on doi</p>
+<pre><code>## When we match entries between the two databases using DOI, we find 
+## 13374 entries common to both databases
+## 3092 entries only in Scopus
+## 2638 entries only in Web of Science.
+## </code></pre>
+<pre><code>## There are 9 matched papers where there is a difference of publication date of more than one year between the two datasets. We are glossing over this for now and just choosing the earlier year between the two for the publications.</code></pre>
+<pre><code>## 
+## For the fields - article title, document type, publisher, isbn, issn, issue, open access, volume, pubmed id, language, source title and page count - we are prefering the Scopus data to WoS, where there is a conflict.</code></pre>
+<pre><code>## 
+## Now this dataset of 19104 entries all with DOIs and matched between Scopus and Web of Science, is what we will take ahead for further analysis.</code></pre>
 <p>#Processing Author Information</p>
 <p>Both Scopus and Web of Science provide their own unique identifiers
 for authors. We need to process the author data from each database
 separately, and then combine them.</p>
-<pre><code>## Proceeding with only a subset of 500 publications, in order to check that the code is working. Once it is fully done, will move to running on the full dataset of `18,000 publications.
-## </code></pre>
 <p>First, processing the author data from Web of Science.</p>
 <pre><code>## Extracting data of individual authors from each publication. Using the library &#39;countries&#39; to assign country identities to affiliations. You will see a report from that function below.
 ## </code></pre>
 <pre><code>## 
-## In total 143 unique country names were provided
-## 126/143 have been matched with EXACT matching
-## 17/143 have been matched with FUZZY matching, out of which:
-## 4/17 are a POOR match (likely wrongly identified)
+## In total 325 unique country names were provided
+## 196/325 have been matched with EXACT matching
+## 129/325 have been matched with FUZZY matching, out of which:
+## 52/129 are a POOR match (likely wrongly identified)
 ## 
 ## 
 ## Multiple arguments have been matched to the same country name:
+##   -  : Andorra 
+##   - Andorra : Andorra 
+##   - Argentina : Argentina 
+##   - Argentina; ; : Argentina 
+##   - Ascension Isl : Saint Helena, Ascension and Tristan da Cunha 
+##   - Ascension Islan : Saint Helena, Ascension and Tristan da Cunha 
+##   - Australia : Australia 
+##   - Australia; ; : Australia 
+##   - Bahrain : Bahrain 
+##   - Bahrain; ; : Bahrain 
+##   - Brazil : Brazil 
+##   - Brazil; ; : Brazil 
+##   - CA  : Canada 
+##   - Cameroon : Cameroon 
+##   - Cameroon; ; : Cameroon 
+##   - Canada : Canada 
+##   - Canada; ; : Canada 
+##   - Czech Republic : Czechia 
+##   - Czech Republic; ; : Czechia 
 ##   - Denmark : Denmark 
 ##   - Denmark; ; : Denmark 
+##   - England : Greenland 
 ##   - Estonia : Estonia 
+##   - Estonia; ; : Estonia 
+##   - Eswatini : Eswatini 
+##   - Ethiopia : Ethiopia 
+##   - Ethiopia; ; : Ethiopia 
+##   - Falkland Island : Falklands 
+##   - Finland : Finland 
+##   - Finland; ; : Finland 
+##   - FL  : Falklands 
+##   - Fr : France 
+##   - Fran : France 
+##   - France : France 
+##   - France; ; : France 
+##   - Georgia : Georgia 
+##   - Georgia; ; : Georgia 
+##   - German : Germany 
+##   - Germany : Germany 
+##   - Germany; ; : Germany 
+##   - Greece : Greece 
+##   - Greece; ; : Greece 
+##   - Greenland : Greenland 
+##   - Hungary : Hungary 
+##   - Hungary; ; : Hungary 
+##   - IL  : Israel 
+##   - India : India 
+##   - India; ; : India 
+##   - Iran : Iran 
+##   - Iran; ; : Iran 
+##   - Ireland : Ireland 
+##   - Ireland; ; : Ireland 
+##   - Israel : Israel 
+##   - Israel; ; : Israel 
+##   - It : Italy 
+##   - Ita : Italy 
+##   - Ital : Italy 
 ##   - Italy : Italy 
+##   - Italy; : Italy 
 ##   - Italy; ; : Italy 
+##   - Japan : Japan 
+##   - Japan; ; : Japan 
+##   - MA  : Morocco 
+##   - Macedonia : North Macedonia 
+##   - Morocco : Morocco 
+##   - Netherlands : Netherlands 
+##   - Netherlands; ; : Netherlands 
 ##   - New Caledonia : New Caledonia 
+##   - New Zealand : New Zealand 
+##   - New Zealand; ; : New Zealand 
+##   - North Ireland; ; : North Korea 
+##   - North Korea : North Korea 
+##   - North Macedonia : North Macedonia 
+##   - Norway : Norway 
+##   - Norway; : Norway 
+##   - NY 1250 : New Caledonia 
 ##   - NY USA; ; : New Caledonia 
+##   - Panama : Panama 
+##   - Panama; ; : Panama 
+##   - Peru : Peru 
+##   - Peru; ; : Peru 
+##   - Por : Portugal 
+##   - Portugal : Portugal 
+##   - Romania : Romania 
+##   - Romania; ; : Romania 
+##   - Russia : Russian Federation 
+##   - Russia; ; : Russian Federation 
+##   - Saudi Arabia : Saudi Arabia 
+##   - Saudi Arabia;  : Saudi Arabia 
+##   - Saudi Arabia; ; : Saudi Arabia 
 ##   - Scotland : Estonia 
+##   - South Africa : South Africa 
+##   - South Africa; ; : South Africa 
+##   - Spain : Spain 
+##   - Spain; ; : Spain 
+##   - St Helena : Saint Helena, Ascension and Tristan da Cunha 
+##   - Swaziland : Eswatini 
+##   - Sweden : Sweden 
+##   - Sweden; ; : Sweden 
+##   - Switzerland : Switzerland 
+##   - Switzerland; ; : Switzerland 
+##   - Syria : Syria 
+##   - Syria; ; : Syria 
+##   - Tanzania : United Republic of Tanzania 
+##   - Tanzania; ; : United Republic of Tanzania 
 ##   - Turkey : Turkey 
-##   - Turkiye : Turkey
+##   - Turkey; ; : Turkey 
+##   - Turkiye : Turkey 
+##   - Wales : Wallis and Futuna 
+##   - Wales; ; : Wallis and Futuna
 ## 
-## No close match found for the following countries, kept the original name:
+## No close match found for the following countries, NA returned:
 ## (set - poor_matches - to TRUE if you want the closest match to be returned or set - na_fill - to TRUE if you wish to fill the NAs with the original name supplied in - x)
+##  - , 
+##  - B-1000 Brussels 1000 
+##  - C 
+##  - CA 9 
+##  - CA 911 
+##  - CA 91125 USA; 
+##  - CA 91125 USA; ; 
+##  - CA 9209 
 ##  - CA 92093 US 
+##  - CA 9252 
+##  - CA 92521 USA; 
+##  - CA 92521 USA; ; 
+##  - CA 93106  
+##  - CA 93106 US 
+##  - CA 93106 USA; ; 
+##  - CA U 
+##  - CA US 
+##  - CA USA; ; 
+##  - CO 80309 USA;  
+##  - CO USA; ; 
+##  - CT 06430 U 
+##  - CT 06430 US 
+##  - CT 06430 USA; 
+##  - E 
+##  - En 
 ##  - England; ; 
+##  - FL 3 
+##  - FL 3230 
+##  - FL USA;  
+##  - FL USA; ; 
+##  - IL 60510  
+##  - IL US 
+##  - IN USA; ; 
+##  - Ithaca 
+##  - MA 02 
+##  - MA 02115 USA; ; 
+##  - MA 0221 
+##  - MA 02215 USA; ; 
+##  - MA USA; ; 
+##  - MI USA; ; 
+##  - Munich 
+##  - OH 43022 US 
+##  - OH 43210 
+##  - OH 44106 USA; ; 
 ##  - OH USA; ; 
-##  - Peoples R China</code></pre>
+##  - PA 1521 
+##  - PA 15213 US 
+##  - PA 15213 USA; ; 
+##  - PA 19104 USA; ; 
+##  - Peoples R China 
+##  - TX  
+##  - UT 84</code></pre>
 <p>Second, processing the author data from Scopus. Scopus also provides
 a unique numerical ID to each author. There are some challenges to
 uniquely extracting that (including the issue of there being multiple
@@ -1688,43 +1845,193 @@ stage.</p>
 <pre><code>## Extracting data of individual authors from each publication. Using the library &#39;countries&#39; to assign country identities to affiliations. You will see a report from that function below.
 ## </code></pre>
 <pre><code>## 
-## In total 159 unique country names were provided
-## 148/159 have been matched with EXACT matching
-## 11/159 have been matched with FUZZY matching, out of which:
-## 6/11 are a POOR match (likely wrongly identified)
+## In total 347 unique country names were provided
+## 223/347 have been matched with EXACT matching
+## 124/347 have been matched with FUZZY matching, out of which:
+## 65/124 are a POOR match (likely wrongly identified)
 ## 
 ## 
 ## Multiple arguments have been matched to the same country name:
-##   - Baltimore : Belarus 
-##   - Belarus : Belarus 
-##   - Bratislava : Brazil 
-##   - Brazil : Brazil 
-##   - CA : Canada 
-##   - Canada : Canada 
-##   - CERN : Cyprus 
-##   - Cyprus : Cyprus 
+##   - &amp; amp : Armenia 
+##   - Armenia : Armenia 
+##   - AZ : Azerbaijan 
+##   - Azerbaijan : Azerbaijan 
+##   - Bahamas : Bahamas 
+##   - Bahrain : Bahrain 
+##   - Bangalore : Bangladesh 
+##   - Bangladesh : Bangladesh 
+##   - Barcelona : Bahrain 
+##   - Belgium : Belgium 
+##   - Belgrade : Belgium 
+##   - Bosnia and Herzegovina : Bosnia and Herzegovina 
+##   - Boston : Bosnia and Herzegovina 
+##   - BRN : Brunei Darussalam 
+##   - Brunei Darussalam : Brunei Darussalam 
+##   - BSB : Bahamas 
+##   - China : China 
+##   - Chinese Academy of Sciences (AiRiA) : China 
+##   - Czech Republic : Czechia 
+##   - Czechia : Czechia 
+##   - Democratic Republic Congo : DR Congo 
+##   - Department of Anatomy &amp; amp : Former North Vietnam 
+##   - Department of Botany &amp; amp : Former North Vietnam 
+##   - Department of Physics : Former North Vietnam 
+##   - Estados Unidos : United States of America 
+##   - Federated States of Micronesia : Micronesia 
+##   - France : France 
+##   - Franciscus Gasthuis &amp; amp : France 
+##   - Hong Kong : Hong Kong 
+##   - HONG KONG : Hong Kong 
+##   - Hospital Universitario Virgen Macarena : Hong Kong 
 ##   - IL : Israel 
+##   - Intensive Care Unit : International Aviation 
+##   - Intensive Care Unit: Prof Ignacio Martin-Loeches : International Aviation 
+##   - International Psychogeriatric Association (IPA) : International Aviation 
+##   - Internet Engineering Task Force&#39;s : International Aviation 
+##   - Isparta : Spain 
 ##   - Israel : Israel 
+##   - Johannesburg : Johnston Island 
+##   - Johns Hopkins Bloomberg School of Public Health : Johnston Island 
+##   - LA : Laos 
+##   - Lao PDR : Laos 
+##   - Laos : Laos 
 ##   - MA : Morocco 
+##   - Micu : Micronesia 
 ##   - Monaco : Monaco 
 ##   - Monash University : Monaco 
 ##   - Morocco : Morocco 
+##   - Netherlands : Netherlands 
+##   - New South Wales : Vanuatu 
+##   - New York : Vanuatu 
+##   - Palestine : State of Palestine 
+##   - Panama : Panama 
+##   - Panthera : Panama 
+##   - Paris : South Africa 
+##   - République Démocratique du Congo : DR Congo 
+##   - Reunion : Réunion 
+##   - Réunion : Réunion 
+##   - Royal Society of Edinburgh : United Kingdom 
+##   - Russia : Russian Federation 
+##   - Russian Federation : Russian Federation 
+##   - Saint Kitts and Nevis : Saint Kitts and Nevis 
+##   - Saint Lucia : Saint Lucia 
+##   - Saint Martin (French Part) : Saint Martin 
+##   - Samoa : Samoa 
+##   - San 4-8 : Saint Martin 
+##   - Santa Cruz de Tenerife : Saint Lucia 
+##   - School of Medicine &amp; amp : Sweden 
+##   - South Africa : South Africa 
+##   - Spain : Spain 
+##   - St. Kitts And Nevis : Saint Kitts and Nevis 
+##   - Stanford Medicine &amp; amp : United States of America 
+##   - Sweden : Sweden 
+##   - Technology and Maritime Transport : State of Palestine 
+##   - The Netherlands : Netherlands 
+##   - Trinidad and Tobago : Trinidad and Tobago 
+##   - Trinity College Dublin : Trinidad and Tobago 
+##   - Tripoli : Trinidad and Tobago 
 ##   - Turkey : Turkey 
-##   - Türkiye : Turkey
+##   - Türkiye : Turkey 
+##   - UK : United Kingdom 
+##   - Unit C : United Province CA 
+##   - United Kingdom : United Kingdom 
+##   - United States : United States of America 
+##   - Universitätsspital Bern : United States Virgin Islands 
+##   - University Hospitals Leuven : United States Virgin Islands 
+##   - University of Brunei Darussalam : United States Virgin Islands 
+##   - University of Cape Town : United Province CA 
+##   - US : United States of America 
+##   - US Department of Health &amp; amp : United States Virgin Islands 
+##   - USA : United States of America 
+##   - Vanuatu : Vanuatu 
+##   - Vienna : Vietnam 
+##   - Viet Nam : Vietnam 
+##   - Virgin Islands (U.S.) : United States Virgin Islands 
+##   - Western Sussex Hospital NHS Foundation Trust : Samoa
 ## 
-## No close match found for the following countries, kept the original name:
+## No close match found for the following countries, NA returned:
 ## (set - poor_matches - to TRUE if you want the closest match to be returned or set - na_fill - to TRUE if you wish to fill the NAs with the original name supplied in - x)
 ##  - Affiliated with an international laboratory covered by a cooperation agreement with CERN 
-##  - Košice 
-##  - Lima-Perú 
+##  - Affiliated with An International Laboratory Covered by A Cooperation Agreement with CERN 
+##  - An Institution Covered by A Cooperation Agreement with CERN 
+##  - ANRS CO11 OBSERVATOIRE EPF 
+##  - App. and Res. Cent. for Advanced Studies 
+##  - b 
+##  - Bandar Seri Begawan 
+##  - Batman 
+##  - Beijing 
+##  - Brigham and Women’s Hospital 
+##  - Cardiac Surgery Icu 
+##  - Casablanca 
+##  - Cupecoy 
+##  - Damascus 
+##  - Dayanand Medical College &amp; amp 
+##  - Delhi 
+##  - Dili 
+##  - Energy and Sustainable Economic Development 
+##  - ESIC Medical College &amp; amp 
+##  - F-67000 Strasbourg 
+##  - Fondazione Carlo Sirtori 
+##  - Fundación Con Vida &amp; amp 
+##  - Gifu College 
+##  - Guy’s &amp; amp 
+##  - Icu 
+##  - Icu 3 
+##  - Icu of Zliten Medical Center 
+##  - Icu1 
+##  - Impulsivity &amp; amp 
+##  - Inc. 
+##  - Istanbul 
+##  - Jagiellonian University Medical College 
+##  - Kragujevac 
+##  - Krankenhaus Märkisch Oderland Strausberg/Wriezen 
+##  - Lille 
 ##  - Limete 
+##  - Lisbon Academic Medical Centre [CAML] 
+##  - Liverpool Hospital 
 ##  - London School of Hygiene &amp; amp 
-##  - Plasma Physics Research Center</code></pre>
+##  - Medical Icu 
+##  - Medical Research Council of South Africa 
+##  - Murdoch Children&#39;s Research Institute 
+##  - Napoli 
+##  - National Narcotics Board of Indonesia 
+##  - Oregon Health &amp; amp 
+##  - Padova 
+##  - Podgorica 
+##  - Pontificia Universidad Católica de Chile 
+##  - President of EAVA 
+##  - R-76900 Bucharest 
+##  - RI 
+##  - Rutgers 
+##  - Science &amp; amp 
+##  - Seattle 
+##  - St Petersburg 
+##  - Tobruk 
+##  - Torino 
+##  - UK CHIC 
+##  - UNODC 
+##  - USA. folmeta@wsu.edu lsegal3@gmail.com sctyner@iastate.edu twila.science@gmail.com ryan.chow@yale.edu prosanta@lsu.edu m.pacesa@bioc.uzh.ch anna.podgornaia@merck.com jennifer.s.chen@yale.edu bipin.singh@bmu.edu.in bocao@vip.qq.com rishirajsidhu@gmail.com brycetan03@hotmail.com drprashantsood@gmail.com parkstua@isu.edu matthew.scult@duke.edu desireevanhaute@gmail.com nk1845@nyu.edu beat.schwendimann@gmail.com sudhakar.srivastava@gmail.com ralphie.fiorenza@gmail.com ken.dutton-regester@qimrberghofer.edu.au r.hale@soton.ac.uk emre-ozan.polat@icfo.es lau1@stanford.edu almayer@mtu.edu eawhite@ucdavis.edu 
+##  - Vanderbilt University Medical Center 
+##  - VIB Center for Brain &amp; amp 
+##  - Wageningen University &amp; amp 
+##  - Youth &amp; amp 
+##  - Yozgat</code></pre>
 <p>Now we need to proceed to combine the author data between the two
-datasets. We are choosing to prioritise data from Scopus over data from
-Web of Science, as it has a wider coverage, and is easier to obtain. In
-case information on a particular publication is not available in Scopus,
-we will get it from Web of Science.</p>
+datasets. We are choosing to prioritise data from Web of Science over
+data from Scopus. This is because Scopus author data includes multiple
+institutional affiliations for the author in the same cell with no clear
+separator. Thus the Web of Science data is easier to clean. In case
+information on a particular publication is not available in Web of
+Science, we will get it from Scopus.</p>
+<pre><code>## Warning: package &#39;arrow&#39; was built under R version 4.4.3</code></pre>
+<pre><code>## 
+## Attaching package: &#39;arrow&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:lubridate&#39;:
+## 
+##     duration</code></pre>
+<pre><code>## The following object is masked from &#39;package:utils&#39;:
+## 
+##     timestamp</code></pre>
 <!-- Chunks that are not current priorities -->
 </div>
 
