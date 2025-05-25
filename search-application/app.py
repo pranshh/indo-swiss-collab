@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 DATA_PATH = os.path.join("data", "publication_details.parquet")
-RESULTS_PER_PAGE = 20  # Show 20 results per page
+RESULTS_PER_PAGE = 100
 
 def parse_natural_query(query):
     params = {
