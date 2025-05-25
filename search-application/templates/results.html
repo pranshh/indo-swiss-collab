@@ -196,9 +196,19 @@
             <h3 class="mb-0">
                 <i class="fas fa-list me-2"></i>Search Results
             </h3>
-            <a href="/" class="btn btn-outline-primary">
-                <i class="fas fa-search me-2"></i>New Search
-            </a>
+            <div class="d-flex gap-2">
+                <form action="/download" method="post" class="d-inline">
+                    {% for key, value in request.form.items() %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-download me-2"></i>Download All Results
+                    </button>
+                </form>
+                <a href="/" class="btn btn-outline-primary">
+                    <i class="fas fa-search me-2"></i>New Search
+                </a>
+            </div>
         </div>
 
         {% if error %}
@@ -324,16 +334,6 @@
             </nav>
             {% endif %}
 
-            <div class="mt-4">
-                <form action="/download" method="post">
-                    {% for key, value in request.form.items() %}
-                    <input type="hidden" name="{{ key }}" value="{{ value }}">
-                    {% endfor %}
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-download me-2"></i>Download All Results
-                    </button>
-                </form>
-            </div>
         {% else %}
             <div class="alert alert-warning" role="alert">
                 <i class="fas fa-exclamation-triangle me-2"></i>No results found.
