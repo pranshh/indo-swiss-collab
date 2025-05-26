@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request, Response
-import duckdb
 import pandas as pd
 import re
 import os
 
 app = Flask(__name__)
-DATA_PATH = os.path.join("data", "publication_details.parquet")
+DATA_PATH = os.path.join("data", "publication_details.feather")
 RESULTS_PER_PAGE = 100
+
+df_publications = pd.read_feather(DATA_PATH)
 
 def parse_natural_query(query):
     params = {
@@ -19,7 +20,6 @@ def parse_natural_query(query):
         'year': ''
     }
 
-    # Extract year with before/after handling
     year_match = re.search(r'\b(19|20)\d{2}\b', query)
     if year_match:
         params['year'] = year_match.group()
@@ -59,61 +59,40 @@ def parse_natural_query(query):
 
     return {k: v.strip() for k, v in params.items()}
 
-def build_duckdb_query(params, page=1, limit=True):
-    conditions = []
+def filter_dataframe(params):
+    df = df_publications.copy()
     if params.get('title'):
-        conditions.append(f"""lower("article title") LIKE '%{params['title'].lower()}%'""")
+        df = df[df['article title'].str.contains(params['title'], case=False, na=False)]
     if params.get('authors'):
-        conditions.append(f"""(lower("author full names") LIKE '%{params['authors'].lower()}%' OR 
-                                lower("authors") LIKE '%{params['authors'].lower()}%')""")
+        mask1 = df['author full names'].str.contains(params['authors'], case=False, na=False)
+        mask2 = df['authors'].str.contains(params['authors'], case=False, na=False)
+        df = df[mask1 | mask2]
     if params.get('abstract'):
-        conditions.append(
-            f"""(lower("abstract.s") LIKE '%{params['abstract'].lower()}%' OR 
-                lower("abstract.w") LIKE '%{params['abstract'].lower()}%' OR 
-                lower("article title") LIKE '%{params['abstract'].lower()}%')"""
-        )
+        mask1 = df['abstract.s'].str.contains(params['abstract'], case=False, na=False)
+        mask2 = df['abstract.w'].str.contains(params['abstract'], case=False, na=False)
+        mask3 = df['article title'].str.contains(params['abstract'], case=False, na=False)
+        df = df[mask1 | mask2 | mask3]
     if params.get('affiliations'):
-        conditions.append(f"""lower("affiliations") LIKE '%{params['affiliations'].lower()}%'""")
+        df = df[df['affiliations'].str.contains(params['affiliations'], case=False, na=False)]
     if params.get('doi'):
-        conditions.append(f"""lower("doi") LIKE '%{params['doi'].lower()}%'""")
+        df = df[df['doi'].str.contains(params['doi'], case=False, na=False)]
     if params.get('year'):
-        if 'BETWEEN' in str(params['year']):
-            conditions.append(f""""year" {params['year']}""")
-        elif params['year'].startswith('>=') or params['year'].startswith('<='):
-            conditions.append(f""""year" {params['year']}""")
+        year_val = params['year']
+        if 'BETWEEN' in year_val:
+            parts = year_val.replace('BETWEEN', '').split('AND')
+            if len(parts) == 2:
+                start, end = int(parts[0]), int(parts[1])
+                df = df[(df['year'] >= start) & (df['year'] <= end)]
+        elif year_val.startswith('>='):
+            df = df[df['year'] >= int(year_val[2:].strip())]
+        elif year_val.startswith('<='):
+            df = df[df['year'] <= int(year_val[2:].strip())]
         else:
-            conditions.append(f""""year" = {params['year']}""")
-
-    where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
-
-    query = f"""
-    WITH filtered_results AS (
-        SELECT 
-            "article title",
-            "abstract.s",
-            "abstract.w",
-            "affiliations",
-            "author full names",
-            "authors",
-            "doi",
-            "scopus_link",
-            "wos categories",
-            "wos research areas",
-            "year"
-        FROM read_parquet('{DATA_PATH}')
-        {where_clause}
-    )
-    SELECT 
-        *,
-        (SELECT COUNT(*) FROM filtered_results) as total_count
-    FROM filtered_results
-    """
-        
-    if limit:
-        offset = (page - 1) * RESULTS_PER_PAGE
-        query += f" LIMIT {RESULTS_PER_PAGE} OFFSET {offset}"
-    
-    return query
+            try:
+                df = df[df['year'] == int(year_val)]
+            except ValueError:
+                pass
+    return df
 
 @app.route('/')
 def index():
@@ -123,12 +102,20 @@ def index():
 def quick_search():
     query = request.form.get('query', '').strip()
     params = parse_natural_query(query)
-    sql_query = build_duckdb_query(params, limit=True)
-    df = duckdb.query(sql_query).to_df()
-    results_data = df.to_dict(orient='records')
+    df = filter_dataframe(params)
+    results_data = df.head(RESULTS_PER_PAGE).to_dict(orient='records')
+    if df.empty:
+        return render_template('results.html',
+                              query=query,
+                              results=[],
+                              message="No results found.",
+                              search_type="quick")
     return render_template('results.html',
                          query=query,
                          results=results_data,
+                         total_count=len(df),
+                         current_page=1,
+                         total_pages=(len(df) + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE,
                          search_type="quick")
 
 @app.route('/search', methods=['POST'])
@@ -154,29 +141,22 @@ def search():
         elif year_to:
             params['year'] = f"<= {year_to}"
 
-        sql_query = build_duckdb_query(params, page=page, limit=True)
-        conn = duckdb.connect(database=':memory:')
-        results = conn.execute(sql_query).fetchall()
-        
-        if not results:
+        df = filter_dataframe(params)
+        total_count = len(df)
+        total_pages = (total_count + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE
+        start = (page - 1) * RESULTS_PER_PAGE
+        end = start + RESULTS_PER_PAGE
+        results_data = df.iloc[start:end].to_dict(orient='records')
+
+        if df.empty:
             return render_template('results.html',
                                 query="Advanced Search",
                                 results=[],
                                 total_count=0,
                                 current_page=page,
                                 total_pages=0,
+                                message="No results found.",
                                 search_type="advanced")
-
-        total_count = results[0][-1]  # Get total count from query
-        total_pages = (total_count + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE
-
-        # Remove total_count from results
-        results_data = [dict(zip(
-            ['article title', 'abstract.s', 'abstract.w', 'affiliations', 
-             'author full names', 'authors', 'doi', 'scopus_link', 
-             'wos categories', 'wos research areas', 'year'],
-            row[:-1]
-        )) for row in results]
 
         return render_template('results.html',
                             query="Advanced Search",
@@ -214,8 +194,7 @@ def download():
     elif year_to:
         params['year'] = f"<= {year_to}"
 
-    sql_query = build_duckdb_query(params, limit=False)
-    df = duckdb.query(sql_query).to_df()
+    df = filter_dataframe(params)
     csv_data = df.to_csv(index=False)
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     return Response(
@@ -225,4 +204,4 @@ def download():
     )
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
