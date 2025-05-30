@@ -62,20 +62,18 @@ def parse_natural_query(query):
 def filter_dataframe(params):
     df = df_publications.copy()
     if params.get('title'):
-        df = df[df['article title'].str.contains(params['title'], case=False, na=False)]
+        df = df[df['article title'].str.contains(params['title'], case=False, na=False, regex=False)]
     if params.get('authors'):
-        mask1 = df['author full names'].str.contains(params['authors'], case=False, na=False)
-        mask2 = df['authors'].str.contains(params['authors'], case=False, na=False)
+        mask1 = df['author full names'].str.contains(params['authors'], case=False, na=False, regex=False)
+        mask2 = df['authors'].str.contains(params['authors'], case=False, na=False, regex=False)
         df = df[mask1 | mask2]
     if params.get('abstract'):
-        mask1 = df['abstract.s'].str.contains(params['abstract'], case=False, na=False)
-        mask2 = df['abstract.w'].str.contains(params['abstract'], case=False, na=False)
-        mask3 = df['article title'].str.contains(params['abstract'], case=False, na=False)
+        mask1 = df['abstract.s'].str.contains(params['abstract'], case=False, na=False, regex=False)
+        mask2 = df['abstract.w'].str.contains(params['abstract'], case=False, na=False, regex=False)
+        mask3 = df['article title'].str.contains(params['abstract'], case=False, na=False, regex=False)
         df = df[mask1 | mask2 | mask3]
     if params.get('affiliations'):
-        df = df[df['affiliations'].str.contains(params['affiliations'], case=False, na=False)]
-    if params.get('doi'):
-        df = df[df['doi'].str.contains(params['doi'], case=False, na=False)]
+        df = df[df['affiliations'].str.contains(params['affiliations'], case=False, na=False, regex=False)]
     if params.get('year'):
         year_val = params['year']
         if 'BETWEEN' in year_val:
