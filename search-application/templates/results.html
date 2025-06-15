@@ -6,159 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --swiss-red: #ff0000;
-            --indian-orange: #FF9933;
-            --indian-green: #138808;
-            --navy: #1B1B3A;
-        }
-        .navbar {
-            background: linear-gradient(45deg, var(--swiss-red), var(--indian-orange)) !important;
-        }
-        .table th { 
-            background-color: #f8f9fa;
-            border-bottom: 2px solid var(--swiss-red);
-        }
-        .btn-success {
-            background-color: var(--indian-green);
-            border-color: var(--indian-green);
-        }
-        .btn-outline-primary {
-            color: var(--swiss-red);
-            border-color: var(--swiss-red);
-        }
-        .btn-outline-primary:hover {
-            background-color: var(--swiss-red);
-            border-color: var(--swiss-red);
-        }
-        .badge.bg-primary {
-            background-color: var(--swiss-red) !important;
-        }
-        .table tr:hover {
-            background-color: rgba(255, 0, 0, 0.05) !important;
-        }
-        .doi-link {
-            color: var(--swiss-red);
-        }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                linear-gradient(90deg, transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px)),
-                linear-gradient(transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px));
-            z-index: -1;
-            opacity: 0.4;
-        }
-        .table-container {
-            position: relative;
-            overflow: hidden;
-        }
-        .table-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, 
-                var(--swiss-red) 33%, 
-                white 33%, white 66%, 
-                var(--indian-orange) 66%);
-        }
-        .table th { background-color: #f8f9fa; }
-        .card { border: none; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
-        .btn-back { text-decoration: none; }
-        .table td { vertical-align: middle; }
-        .doi-link { color: #0d6efd; text-decoration: none; }
-        .doi-link:hover { text-decoration: underline; }
-        .table-container { border-radius: 8px; overflow: hidden; }
-        .table tr { transition: all 0.2s ease; }
-        .table tr:hover { background-color: rgba(13,110,253,0.05) !important; }
-        .expandable { cursor: pointer; position: relative; }
-        .expandable::after { 
-            content: '🔍';
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .expandable:hover::after { opacity: 1; }
-        .modal-body { max-height: 80vh; overflow-y: auto; }
-        .highlight { background-color: yellow; }
-        @media (max-width: 767.98px) {
-            .navbar .navbar-brand {
-                font-size: 1.1rem;
-                padding-left: 0.5rem;
-            }
-            h3.mb-0, h3.mb-4 {
-                font-size: 1.2rem;
-            }
-            .table th, .table td {
-                font-size: 0.95rem;
-                padding: 0.5rem;
-            }
-            .btn, .btn-outline-primary, .btn-success {
-                font-size: 0.95rem !important;
-                padding: 0.5rem 0.8rem !important;
-            }
-            .badge {
-                font-size: 0.9rem;
-            }
-            .pagination {
-                gap: 0.25rem;
-            }
-            .pagination .page-link {
-                min-width: 2.5rem;
-                text-align: center;
-            }
-            .modal-dialog {
-                max-width: 95vw;
-                margin: 1rem auto;
-            }
-        }
-        @media (max-width: 575.98px) {
-            .navbar .navbar-brand {
-                font-size: 1rem;
-            }
-            h3.mb-0, h3.mb-4 {
-                font-size: 1rem;
-            }
-            .table th, .table td {
-                font-size: 0.9rem;
-                padding: 0.35rem;
-            }
-            .btn, .btn-outline-primary, .btn-success {
-                font-size: 0.9rem !important;
-                padding: 0.4rem 0.6rem !important;
-            }
-            .badge {
-                font-size: 0.85rem;
-            }
-            .pagination .page-link {
-                min-width: 2rem;
-                padding: 0.25rem 0.5rem;
-            }
-            .modal-dialog {
-                max-width: 99vw;
-                margin: 0.5rem auto;
-            }
-        }
-        @media (max-width: 991.98px) {
-            .table-responsive {
-                overflow-x: auto;
-            }
-            .table {
-                min-width: 700px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-dark">
@@ -197,7 +45,7 @@
 
         {% set col_map = {
             'abstract.s': 'Abstract',
-            'affiliations': 'Institute Affiliations',
+            'affiliations': 'Institutionals Affiliations',
             'article title': 'Article Title',
             'author full names': 'Authors',
             'doi': 'DOI',
@@ -210,8 +58,7 @@
         {% if results %}
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="form-inline">
-                <input type="text" id="tableSearch" class="form-control form-control-sm" 
-                       placeholder="Filter results...">
+                <input type="text" id="tableSearch" class="form-control form-control-sm" placeholder="Filter results...">
             </div>
             <span class="badge bg-primary" id="resultCount"></span>
         </div>
@@ -342,78 +189,7 @@
         </div>
     </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    // Enable Bootstrap tooltips
-    document.addEventListener('DOMContentLoaded', function() {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-
-        // Table search/filter functionality
-        const searchInput = document.getElementById('tableSearch');
-        const tableRows = Array.from(document.querySelectorAll('tbody tr'));
-        const resultCount = document.getElementById('resultCount');
-
-        function updateResultCount() {
-            const visibleRows = tableRows.filter(row => row.style.display !== 'none').length;
-            if (resultCount) {
-                resultCount.textContent = `Showing ${visibleRows} results`;
-            }
-        }
-
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                const searchTerm = searchInput.value.toLowerCase();
-                tableRows.forEach(row => {
-                    let match = false;
-                    row.querySelectorAll('td').forEach(cell => {
-                        const visible = cell.textContent.toLowerCase();
-                        const full = (cell.dataset.fulltext || '').toLowerCase();
-                        if (visible.includes(searchTerm) || full.includes(searchTerm)) match = true;
-                    });
-                    row.style.display = match ? '' : 'none';
-                });
-                updateResultCount();
-            });
-        }
-
-        // Modal functionality for expandable cells (if used)
-        const detailModal = document.getElementById('detailModal');
-        if (detailModal) {
-            const modalBody = detailModal.querySelector('.modal-body');
-            document.querySelectorAll('.expandable').forEach(cell => {
-                cell.addEventListener('click', function() {
-                    const content = this.getAttribute('data-content');
-                    if (modalBody && content) {
-                        modalBody.innerHTML = `<p class="lead" style="white-space:pre-line;">${content}</p>`;
-                        var modal = new bootstrap.Modal(detailModal);
-                        modal.show();
-                    }
-                });
-            });
-        }
-
-        // Initialize result count on page load
-        updateResultCount();
-    });
-
-    // Pagination handler
-    function changePage(page) {
-        const form = document.getElementById('searchForm');
-        if (form) {
-            let pageInput = form.querySelector('input[name="page"]');
-            if (!pageInput) {
-                pageInput = document.createElement('input');
-                pageInput.type = 'hidden';
-                pageInput.name = 'page';
-                form.appendChild(pageInput);
-            }
-            pageInput.value = page;
-            form.submit();
-        }
-    }
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

@@ -6,158 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --swiss-red: #ff0000;
-            --indian-orange: #FF9933;
-            --indian-green: #138808;
-            --navy: #1B1B3A;
-            --white: #ffffff;
-        }
-
-        .navbar {
-            background: linear-gradient(45deg, var(--swiss-red), var(--indian-orange)) !important;
-            border-bottom: 3px solid var(--white);
-        }
-
-        .card-header {
-            background: linear-gradient(45deg, var(--swiss-red), var(--indian-orange)) !important;
-        }
-
-        .btn-primary {
-            background-color: var(--swiss-red);
-            border-color: var(--swiss-red);
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--indian-orange);
-            border-color: var(--indian-orange);
-            transform: translateY(-2px);
-        }
-
-        .text-primary {
-            color: var(--swiss-red) !important;
-        }
-
-        .form-control:focus {
-            border-color: var(--swiss-red);
-            box-shadow: 0 0 0 0.25rem rgba(255, 0, 0, 0.25);
-        }
-
-        body {
-            background-color: #f8f9fa;
-            position: relative;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                linear-gradient(90deg, transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px)),
-                linear-gradient(transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px));
-            z-index: -1;
-            opacity: 0.4;
-        }
-
-        .card {
-            border: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, 
-                var(--swiss-red) 33%, 
-                var(--white) 33%, var(--white) 66%, 
-                var(--indian-orange) 66%);
-        }
-
-        .collaboration-banner {
-            background: linear-gradient(to right, rgba(255,0,0,0.1), rgba(255,153,51,0.1));
-            border-bottom: 2px solid var(--swiss-red);
-            padding: 10px 0;
-        }
-
-        .form-floating label {
-            color: var(--navy);
-        }
-
-        .custom-section {
-            padding: 2rem 0;
-        }
-
-        .scale-animation {
-            transition: transform 0.3s ease;
-        }
-
-        .scale-animation:focus-within {
-            transform: scale(1.02);
-        }
-
-        .year-range-card {
-            background: linear-gradient(to right, rgba(255,0,0,0.05), rgba(255,153,51,0.05));
-        }
-        @media (max-width: 767.98px) {
-            .navbar .navbar-brand {
-                font-size: 1.1rem;
-                padding-left: 0.5rem;
-            }
-            .custom-section {
-                padding: 1rem 0;
-            }
-            .card-header h4, .card-header h6 {
-                font-size: 1.1rem;
-            }
-            .card-body {
-                padding: 1rem !important;
-            }
-            .form-floating > label {
-                font-size: 0.95rem;
-            }
-            .btn-lg, .btn-primary {
-                font-size: 1rem !important;
-                padding: 0.75rem 1rem !important;
-            }
-            .year-range-card .card-body {
-                padding: 0.75rem !important;
-            }
-            .row.g-4 > [class^="col-"], .row.g-4 > [class*=" col-"] {
-                margin-bottom: 1rem;
-            }
-        }
-        @media (max-width: 575.98px) {
-            .navbar .navbar-brand {
-                font-size: 1rem;
-            }
-            .card-header h4, .card-header h6 {
-                font-size: 1rem;
-            }
-            .form-floating > label {
-                font-size: 0.9rem;
-            }
-            .btn-lg, .btn-primary {
-                font-size: 0.95rem !important;
-                padding: 0.6rem 0.8rem !important;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
     <nav class="navbar navbar-dark">
@@ -184,32 +33,28 @@
                                 <!-- Title -->
                                 <div class="col-md-6">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="title" name="title" 
-                                               placeholder="Search in title...">
+                                        <input type="text" class="form-control" id="title" name="title" placeholder="Search in title...">
                                         <label for="title"><i class="fas fa-heading me-2"></i>Article Title</label>
                                     </div>
                                 </div>
                                 <!-- Authors -->
                                 <div class="col-md-6">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="authors" name="authors" 
-                                               placeholder="Search authors...">
+                                        <input type="text" class="form-control" id="authors" name="authors" placeholder="Search authors...">
                                         <label for="authors"><i class="fas fa-users me-2"></i>Authors</label>
                                     </div>
                                 </div>
                                 <!-- Abstract -->
                                 <div class="col-md-12">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="abstract" name="abstract" 
-                                               placeholder="Search in abstract...">
+                                        <input type="text" class="form-control" id="abstract" name="abstract" placeholder="Search in abstract...">
                                         <label for="abstract"><i class="fas fa-align-left me-2"></i>Abstract/Keywords</label>
                                     </div>
                                 </div>
                                 <!-- Institutional Affiliation -->
                                 <div class="col-md-12">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="affiliations" name="affiliations" 
-                                               placeholder="Search affiliations...">
+                                        <input type="text" class="form-control" id="affiliations" name="affiliations" placeholder="Search affiliations...">
                                         <label for="affiliations"><i class="fas fa-university me-2"></i>Institutional Affiliation</label>
                                     </div>
                                 </div>
@@ -221,17 +66,13 @@
                                             <div class="row g-3">
                                                 <div class="col-6">
                                                     <div class="form-floating">
-                                                        <input type="number" class="form-control" id="year_from" 
-                                                               name="year_from" placeholder="From Year" 
-                                                               min="1900" max="2025">
+                                                        <input type="number" class="form-control" id="year_from" name="year_from" placeholder="From Year" min="1900" max="2025">
                                                         <label for="year_from">From Year</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-6">
                                                     <div class="form-floating">
-                                                        <input type="number" class="form-control" id="year_to" 
-                                                               name="year_to" placeholder="To Year" 
-                                                               min="1900" max="2025">
+                                                        <input type="number" class="form-control" id="year_to" name="year_to" placeholder="To Year" min="1900" max="2025">
                                                         <label for="year_to">To Year</label>
                                                     </div>
                                                 </div>
@@ -262,9 +103,7 @@
                     <div class="card-body p-4">
                         <form action="/quick-search" method="post">
                             <div class="input-group">
-                                <input type="text" class="form-control form-control-lg" 
-                                        placeholder="Search publications, authors, topics..." 
-                                        name="query" id="quick-search">
+                                <input type="text" class="form-control form-control-lg" placeholder="Search publications, authors, topics..." name="query" id="quick-search">
                                 <button class="btn btn-primary" type="submit">
                                     <i class="fas fa-search"></i>
                                 </button>
@@ -291,39 +130,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const forms = document.querySelectorAll('form');
-            
-            forms.forEach(form => {
-                const submitBtn = form.querySelector('button[type="submit"]');
-                const inputs = form.querySelectorAll('input');
-                
-                inputs.forEach(input => {
-                    input.addEventListener('focus', function() {
-                        this.closest('.form-floating').classList.add('scale-105');
-                    });
-                    
-                    input.addEventListener('blur', function() {
-                        this.closest('.form-floating').classList.remove('scale-105');
-                    });
-                });
-                
-                form.addEventListener('submit', function() {
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Searching...';
-                    submitBtn.disabled = true;
-                });
-            });
-        });
-
-        window.addEventListener('pageshow', function() {
-            const submitButtons = document.querySelectorAll('button[type="submit"]');
-            submitButtons.forEach(btn => {
-                btn.innerHTML = btn.dataset.origText || btn.innerHTML;
-                btn.disabled = false;
-            });
-        });
-
-    </script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

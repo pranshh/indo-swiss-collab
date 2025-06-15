@@ -1,0 +1,189 @@
+/* Root variables */
+:root {
+    --swiss-red: #ff0000;
+    --indian-orange: #FF9933;
+    --indian-green: #138808;
+    --navy: #1B1B3A;
+    --white: #ffffff;
+}
+
+/* Global Styles */
+body {
+    background-color: #f8f9fa;
+    position: relative;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        linear-gradient(90deg, transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px)),
+        linear-gradient(transparent calc(50% - 1px), #f0f0f0 50%, transparent calc(50% + 1px));
+    z-index: -1;
+    opacity: 0.4;
+}
+
+/* Navbar */
+.navbar {
+    background: linear-gradient(45deg, var(--swiss-red), var(--indian-orange)) !important;
+    border-bottom: 3px solid var(--white);
+}
+
+/* Card Header */
+.card-header {
+    background: linear-gradient(45deg, var(--swiss-red), var(--indian-orange)) !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--swiss-red);
+    border-color: var(--swiss-red);
+    transition: all 0.3s ease;
+}
+.btn-primary:hover {
+    background-color: var(--indian-orange);
+    border-color: var(--indian-orange);
+    transform: translateY(-2px);
+}
+.btn-success {
+    background-color: var(--indian-green);
+    border-color: var(--indian-green);
+}
+.btn-outline-primary {
+    color: var(--swiss-red);
+    border-color: var(--swiss-red);
+}
+.btn-outline-primary:hover {
+    background-color: var(--swiss-red);
+    border-color: var(--swiss-red);
+}
+.text-primary {
+    color: var(--swiss-red) !important;
+}
+
+/* Form Controls */
+.form-control:focus {
+    border-color: var(--swiss-red);
+    box-shadow: 0 0 0 0.25rem rgba(255, 0, 0, 0.25);
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+.card:hover {
+    transform: translateY(-5px);
+}
+.card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--swiss-red) 33%, var(--indian-orange) 66%, var(--swiss-red));
+}
+
+/* Table Styling (Results Page) */
+.table th { 
+    background-color: #f8f9fa;
+    border-bottom: 2px solid var(--swiss-red);
+}
+.table tr:hover {
+    background-color: rgba(255, 0, 0, 0.05) !important;
+}
+.table td {
+    vertical-align: middle;
+}
+.table-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+}
+.table tr {
+    transition: all 0.2s ease;
+}
+
+/* DOI Link */
+.doi-link {
+    color: var(--swiss-red);
+    text-decoration: none;
+}
+.doi-link:hover {
+    text-decoration: underline;
+}
+
+/* Utility classes */
+.btn-back {
+    text-decoration: none;
+}
+.badge.bg-primary {
+    background-color: var(--swiss-red) !important;
+}
+
+/* Modal */
+.modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.highlight {
+    background-color: yellow;
+}
+
+/* Media Queries for Responsive adjustments */
+@media (max-width: 767.98px) {
+    .navbar .navbar-brand {
+        /* Mobile specific styling */
+    }
+    .custom-section {
+        /* Mobile adjustments */
+    }
+    .card-header h4,
+    .card-header h6 {
+        /* Responsive font sizes */
+    }
+    .card-body {
+        /* Adjustments for mobile */
+    }
+    .form-floating > label {
+        /* Mobile adjustments */
+    }
+    .btn-lg, .btn-primary {
+        /* Adjust button sizes */
+    }
+    .year-range-card .card-body {
+        /* Adjust year range card styles */
+    }
+    .row.g-4 > [class^="col-"],
+    .row.g-4 > [class*=" col-"] {
+        /* Grid spacing adjustments */
+    }
+}
+
+@media (max-width: 575.98px) {
+    .navbar .navbar-brand {
+        /* Smaller mobile adjustments */
+    }
+    .card-header h4,
+    .card-header h6 {
+        /* Smaller fonts */
+    }
+    .form-floating > label {
+        /* Smaller labels */
+    }
+    .btn-lg, .btn-primary {
+        /* Smaller buttons */
+    }
+}
+
+@media (max-width: 991.98px) {
+    /* Tablet adjustments */
+}
