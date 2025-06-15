@@ -241,7 +241,7 @@
                                 </div>
                             </div>
                             <div class="mt-4">
-                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <button type="submit" class="btn btn-primary btn-lg w-100" data-orig-text='<i class="fas fa-search me-2"></i>Search Publications'>
                                     <i class="fas fa-search me-2"></i>Search Publications
                                 </button>
                             </div>
@@ -315,6 +315,15 @@
                 });
             });
         });
+
+        window.addEventListener('pageshow', function() {
+            const submitButtons = document.querySelectorAll('button[type="submit"]');
+            submitButtons.forEach(btn => {
+                btn.innerHTML = btn.dataset.origText || btn.innerHTML;
+                btn.disabled = false;
+            });
+        });
+
     </script>
 </body>
 </html>
