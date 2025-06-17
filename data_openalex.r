@@ -44,7 +44,7 @@ query_params <- paste0("https://api.openalex.org/works?filter=",
 
 # Process the publications data -------------------------------------------
 
-files = list.files(pattern = '^OA_.*.rdata$')
+files = list.files(path = 'Data',pattern = '^OA_.*.rdata$', full.names = T)
 
 publications_df = tibble()
 
@@ -69,18 +69,36 @@ write_feather(publications_df,
 #   unnest(cols = 'affiliations') %>%
 #   rename(inst_id = id, inst_name = display_name)
 
+# Helper function to remove the OpenAlex URL prefix from IDs
+clean_id <- function(id) {
+  str_remove(id, "https://openalex.org/")
+}
 
 # The core of the work is to process the 'authorships' list-column.
 # We'll create a new set of columns with author and institution statistics.
-processed_data <- publications_df %>% slice_sample(n=10) %>%
+processed_data <- publications_df %>% #slice_sample(n=10) %>%
   # Add a unique publication number for easy reference, similar to pubNum in the Rmd
   mutate(pubNum = row_number(), work_id = clean_id(id)) %>%
   select(-id) %>%
   # Create a new column that processes the authorships for each paper
   mutate(
     # 'map' iterates through the 'authorships' column for each publication
-    author_stats = map(authorships, function(authors_df) {
+    author_info = map(authorships,function(authors_df) {
+      # Unnest the affiliations for each author. This is the key step.
+      # Each row will now be one author affiliated with one institution for that paper.
+      author_inst <- authors_df %>%
+        mutate(author_id = clean_id(id), orcid= str_remove(orcid,"https://orcid.org/")) %>%
+        select(author_id, author_name = display_name, orcid, affiliations) %>%
+        unnest(affiliations, keep_empty = TRUE) %>%
+        mutate(inst_id = clean_id(id), ror = str_remove(ror,'https://ror.org/')) %>%
+        select(author_id, orcid, author_name, inst_name = display_name, inst_id, ror, country_code)
       
+      author_inst %>% nest(institutions = any_of(c('inst_name', 'inst_id', 'ror', 'country_code')))
+      
+    })) %>%
+  select(-authorships) %>%
+  mutate(author_stats = map(author_info, function(authors_df) {
+
       # If there are no authors, return an empty summary
       if (is.null(authors_df) || nrow(authors_df) == 0) {
         return(
@@ -90,43 +108,35 @@ processed_data <- publications_df %>% slice_sample(n=10) %>%
           )
         )
       }
-      
-      # Unnest the affiliations for each author. This is the key step.
-      # Each row will now be one author affiliated with one institution for that paper.
-      author_inst <- authors_df %>%
-        select(author_id = id, author_name = display_name, affiliations) %>%
-        unnest(affiliations, keep_empty = TRUE) %>%
-        rename(inst_id = id) %>%
-        select(author_id, author_name, inst_name = display_name, inst_id, country_code)
-      
-      # For each author on the paper, find all their unique country codes
-      author_countries <- author_inst %>%
-        group_by(author_id, author_name) %>%
-        summarise(
-          countries = list(unique(country_code)),
-          .groups = 'drop'
-        ) %>%
-        # Categorize each author based on their affiliations for this paper
-        mutate(
-          is_swiss = map_lgl(countries, ~ "CH" %in% .x),
-          is_indian = map_lgl(countries, ~ "IN" %in% .x),
-          auth_cat = case_when(
-            is_swiss & is_indian ~ "Both",
-            is_swiss ~ "Swiss",
-            is_indian ~ "India",
-            TRUE ~ "Other"
-          )
+    authors_df = authors_df %>% unnest(institutions) 
+    # For each author on the paper, find all their unique country codes
+    author_countries <- authors_df %>%
+      group_by(author_id, author_name) %>%
+      summarise(
+        countries = list(unique(country_code)),
+        .groups = 'drop'
+      ) %>%
+      # Categorize each author based on their affiliations for this paper
+      mutate(
+        is_swiss = map_lgl(countries, ~ "CH" %in% .x),
+        is_indian = map_lgl(countries, ~ "IN" %in% .x),
+        auth_cat = case_when(
+          is_swiss & is_indian ~ "Both",
+          is_swiss ~ "Swiss",
+          is_indian ~ "India",
+          TRUE ~ "Other"
         )
-      
+      )
+    
       # Calculate the summary statistics for the single publication
       tibble(
         nAuthors = n_distinct(author_countries$author_id),
         nIndAuth = sum(author_countries$auth_cat == "India"),
         nSwissAuth = sum(author_countries$auth_cat == "Swiss"),
         nBothAuth = sum(author_countries$auth_cat == "Both"),
-        nIndInst = n_distinct(author_inst$inst_name[author_inst$country_code == "IN"], na.rm = TRUE),
-        nSwissInst = n_distinct(author_inst$inst_name[author_inst$country_code == "CH"], na.rm = TRUE),
-        nCountries = n_distinct(author_inst$country_code, na.rm = TRUE)
+        nIndInst = n_distinct(authors_df$inst_name[authors_df$country_code == "IN"], na.rm = TRUE),
+        nSwissInst = n_distinct(authors_df$inst_name[authors_df$country_code == "CH"], na.rm = TRUE),
+        nCountries = n_distinct(authors_df$country_code, na.rm = TRUE)
       )
     }),
     topic_info = map(topics, function(topics_df) {
@@ -149,52 +159,62 @@ processed_data <- publications_df %>% slice_sample(n=10) %>%
       }
     })
   ) %>%
+  # select(-topics) %>%
   # Unnest the new 'author_stats' column to make them regular columns
   unnest(author_stats) %>%
-  select(-topics)
-
-processed_data = processed_data  %>%
-  select(-landing_page_url,-concepts)
+  select(-topics,-concepts,-apc,-referenced_works,-related_works,-referenced_works_count, -landing_page_url)
 
 ntopics = publications_df %>%
   select(id, topics, authorships) %>% 
   mutate(topics_rows = map_int(topics, function(topics_df) {nrow(topics_df)}),
          nauth = map_int(authorships, function(topics_df) {nrow(topics_df)}))
 
-saveRDS(processed_data,file = 'openAlex_processing_partial.rdata')
+saveRDS(processed_data,file = 'openAlex_processed.rdata')
+
+library(arrow)
+
+saveRDS(publications_df, 
+        'Data/openAlex_df_2000-2024.rdata')
+
+write_feather(processed_data, 
+              'Data/openAlex_df_2000-2024.feather', compression = 'zstd', compression_level = 5)
+
 
 # --- 4. CREATE FINAL OUTPUT FILES ---
-# Recreate the two main data frames as in the RMD script
+# Recreate the two main data frames as in the WoS + Scopus analysis
 
-# Helper function to remove the OpenAlex URL prefix from IDs
-clean_id <- function(id) {
-  str_remove(id, "https://openalex.org/")
-}
+
 
 # 4a. paper.details: One row per publication with summary stats
 paper.details <- processed_data %>%
   select(
     pubNum,
+    work_id,
     doi,
     title,
+    abstract,
     document_type = type,
     publication_year,
     language,
     source_title = source_display_name,
     is_oa,
+    # grants,
     oa_status,
     cited_by_count,
     fwci,
-    datasource = ids, # Using 'ids' as a stand-in for a datasource column
+    is_retracted,
+    topic_info,
     # Add the newly created summary stats
     nAuthors, nIndAuth, nSwissAuth, nBothAuth, nIndInst, nSwissInst, nCountries
   ) %>%
+  unnest(topic_info) %>% group_by(pubNum) %>% slice_head(n = 1) %>%
+  select(-topic_rank,-topic_class_score,-topic.id,-subfield.id,-field.id,-domain.id) %>%
   # Add a datasource column for consistency
   mutate(datasource = "OpenAlex")
 
 # 4b. author.details: Contains the nested data for deeper author analysis
 author.details <- processed_data %>%
-  select(pubNum, datasource = ids, author_details = authorships, nAuthors:nCountries) %>%
+  select(pubNum,work_id, author_info, nAuthors:nCountries) %>%
   mutate(datasource = "OpenAlex")
 
 
@@ -206,11 +226,8 @@ glimpse(paper.details)
 print("--- Author Details (author.details) ---")
 glimpse(author.details)
 
-# You can now save these data frames for your project
-# saveRDS(paper.details, file = 'Data/publication_details_from_openalex.RData')
-# saveRDS(author.details, file = 'Data/author_details_from_openalex.RData')
+write_feather(paper.details, 
+              'Data/openAlex_paper_details_flat.feather', compression = 'zstd', compression_level = 5)
 
-# Or save as Feather files for cross-language use (e.g., with Python)
-# library(arrow)
-# write_feather(paper.details, 'Data/publication_details.feather')
-# write_feather(author.details, 'Data/author_details.feather')
+write_feather(author.details, 
+              'Data/openAlex_author_details.feather', compression = 'zstd', compression_level = 5)
