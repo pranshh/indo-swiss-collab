@@ -60,7 +60,8 @@
             <div class="form-inline">
                 <input type="text" id="tableSearch" class="form-control form-control-sm" placeholder="Filter results...">
             </div>
-            <span class="badge bg-primary" id="resultCount"></span>
+
+        <span class="badge bg-primary" id="resultCount" data-total="{{ total_count }}">Showing {{ end_index - start_index + 1 }} results out of {{ total_count }}</span>        
         </div>
 
         <div class="card table-container">

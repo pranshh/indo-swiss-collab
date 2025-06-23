@@ -47,10 +47,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchInput) {
         const tableRows = Array.from(document.querySelectorAll('tbody tr'));
         const resultCount = document.getElementById('resultCount');
+        const grandTotal = resultCount ? parseInt(resultCount.dataset.total, 10) : tableRows.length;
         function updateResultCount() {
             const visibleRows = tableRows.filter(row => row.style.display !== 'none').length;
             if (resultCount) {
-                resultCount.textContent = `Showing ${visibleRows} results`;
+                resultCount.textContent = `Showing ${visibleRows} results out of ${grandTotal}`;
             }
         }
         searchInput.addEventListener('input', function() {
