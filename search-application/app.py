@@ -145,6 +145,8 @@ def search():
         start = (page - 1) * RESULTS_PER_PAGE
         end = start + RESULTS_PER_PAGE
         results_data = df.iloc[start:end].to_dict(orient='records')
+        start_index = start + 1 if total_count > 0 else 0
+        end_index = min(end, total_count)
 
         if df.empty:
             return render_template('results.html',
@@ -162,6 +164,8 @@ def search():
                             total_count=total_count,
                             current_page=page,
                             total_pages=total_pages,
+                            start_index=start_index,
+                            end_index=end_index,
                             search_type="advanced")
 
     except Exception as e:
