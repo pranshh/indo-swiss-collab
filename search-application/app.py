@@ -9,56 +9,6 @@ RESULTS_PER_PAGE = 100
 
 df_publications = pd.read_feather(DATA_PATH)
 
-def parse_natural_query(query):
-    params = {
-        'title': '',
-        'authors': '',
-        'abstract': '',
-        'affiliations': '',
-        'doi': '',
-        'wos_categories': '',
-        'year': ''
-    }
-
-    year_match = re.search(r'\b(19|20)\d{2}\b', query)
-    if year_match:
-        params['year'] = year_match.group()
-        query = re.sub(r'\b(19|20)\d{2}\b', '', query)
-
-    if 'after' in query.lower() and params['year']:
-        params['year'] = f">={params['year']}"
-    elif 'before' in query.lower() and params['year']:
-        params['year'] = f"<={params['year']}"
-
-    # Extract institutions
-    inst_patterns = [
-        r'university of \w+',
-        r'institute of \w+',
-        r'\w+ university',
-        r'\w+ institute'
-    ]
-    for pattern in inst_patterns:
-        matches = re.finditer(pattern, query, re.IGNORECASE)
-        for match in matches:
-            params['affiliations'] += f"{match.group()} "
-            query = query.replace(match.group(), '')
-
-    # Extract topics
-    topic_indicators = ['about', 'regarding', 'on', 'related to']
-    for indicator in topic_indicators:
-        if indicator in query.lower():
-            parts = query.lower().split(indicator)
-            if len(parts) > 1:
-                params['abstract'] = parts[1].strip()
-                query = parts[0]
-
-    # Remaining text is treated as author names
-    remaining_terms = query.strip()
-    if remaining_terms:
-        params['authors'] = remaining_terms
-
-    return {k: v.strip() for k, v in params.items()}
-
 def filter_dataframe(params):
     df = df_publications.copy()
     if params.get('title'):
@@ -95,26 +45,6 @@ def filter_dataframe(params):
 @app.route('/')
 def index():
     return render_template('index.html')
-
-@app.route('/quick-search', methods=['POST'])
-def quick_search():
-    query = request.form.get('query', '').strip()
-    params = parse_natural_query(query)
-    df = filter_dataframe(params)
-    results_data = df.head(RESULTS_PER_PAGE).to_dict(orient='records')
-    if df.empty:
-        return render_template('results.html',
-                              query=query,
-                              results=[],
-                              message="No results found.",
-                              search_type="quick")
-    return render_template('results.html',
-                         query=query,
-                         results=results_data,
-                         total_count=len(df),
-                         current_page=1,
-                         total_pages=(len(df) + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE,
-                         search_type="quick")
 
 @app.route('/search', methods=['POST'])
 def search():
@@ -204,6 +134,10 @@ def download():
         mimetype="text/csv",
         headers={"Content-disposition": f"attachment; filename=results_{timestamp}.csv"}
     )
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 if __name__ == '__main__':
     app.run()

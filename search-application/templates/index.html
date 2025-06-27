@@ -14,9 +14,11 @@
             <span class="navbar-brand mb-0 h1">
                 <i class="fas fa-search-plus me-2"></i>Indo-Swiss Research Publications Database
             </span>
+            <a href="{{ url_for('about') }}" class="btn btn-primary ms-auto" style="font-weight:600; letter-spacing:0.5px;">
+                <i class="fas fa-info-circle me-1"></i>About
+            </a>
         </div>
     </nav>
-
     <div class="container custom-section">
         <!-- Advanced Search Section -->
         <div class="row justify-content-center">
@@ -91,38 +93,13 @@
                 </div>
             </div>
         </div>
-        <!-- Quick Search Section -->
-        <div class="row justify-content-center mb-5">
-            <div class="col-md-10 col-lg-8">
-                <div class="card scale-animation">
-                    <div class="card-header py-3">
-                        <h4 class="mb-0 text-white">
-                            <i class="fas fa-search me-2"></i>Natural Language Search
-                        </h4>
-                    </div>
-                    <div class="card-body p-4">
-                        <form action="/quick-search" method="post">
-                            <div class="input-group">
-                                <input type="text" class="form-control form-control-lg" placeholder="Search publications, authors, topics..." name="query" id="quick-search">
-                                <button class="btn btn-primary" type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                            <small class="text-muted mt-2 d-block">
-                                Try searching by topic, author, institution, or year in natural language
-                            </small>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Disclaimer Section -->
         <div class="row justify-content-center mb-4">
             <div class="col-md-10 col-lg-8">
                 <div class="alert alert-warning" role="alert">
                     <strong>Disclaimer:</strong> This is a beta version of a search interface for joint publications from authors affiliated with Switzerland and India in the citation and abstract databases Web of Science and Scopus, published between 2000 and 2024. Data cleaning is ongoing. Output from this tool should only be considered indicative.
-                    <br><br>The Natural Language Search is still in beta and may not return reliable results. For questions or comments, please contact <a href="mailto:siddharth.bharath@protonmail.com">siddharth.bharath@protonmail.com</a> or <a href="mailto:max.bergman@unibas.ch">max.bergman@unibas.ch</a>.
+                    <br><br>For questions or comments, please contact <a href="mailto:siddharth.bharath@protonmail.com">siddharth.bharath@protonmail.com</a> or <a href="mailto:max.bergman@unibas.ch">max.bergman@unibas.ch</a>.
                 </div>
             </div>
         </div>
