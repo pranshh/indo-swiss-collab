@@ -529,7 +529,7 @@ library(openalexR)
 # Helper function to remove the OpenAlex URL prefix from IDs
 
 clean_id <- function(id) {
-  str_remove(id, "(https://openalex.org/)|(https://ror.org/)|(https://doi.org/)|(https://orcid.org/)")
+  str_remove_all(id, "(https://openalex.org/)|(https://ror.org/)|(https://doi.org/)|(https://orcid.org/)")
 }
 
 get_openalex_data = function(start.date,end.date) {
@@ -547,14 +547,18 @@ response <- oa_request(query_url = URLencode(query_params), mailto = 'siddharth.
 
 publications_df = oa2df(data = response, entity = 'works')
 
+printo('Downloaded ',nrow(publications_df),' works from openAlex in this period.')
+
 #Individually get the full authorships data for whichever have truncated records
 #Now, any publication with exactly 100 authors is one that has more authors. 
 # So we have to query the API to get the information of that single publication
 
-publications_df = mutate(publications_df, rownum = row_number())
+publications_df = mutate(publications_df, rownum = row_number(), id = clean_id(id), doi = clean_id(doi), source_id = clean_id(source_id), host_organization = clean_id(host_organization))
+
 auth100 = publications_df %>% filter(map_int(authorships, nrow) == 100) %>% pull(rownum)
 
 if(length(auth100) > 0) {
+  printo(length(auth100), ' of these publications have more than 100 authors. Getting their details separately from openAlex.')
   for(i in auth100) {
   query_params <- paste0("https://api.openalex.org/works/",clean_id(publications_df$id[i]),"&select=id,authorships")
   response <- oa_request(query_url = query_params)
@@ -569,101 +573,139 @@ return(publications_df %>% select(-rownum))
 
 }
 
-publications_df = get_openalex_data(start.date = '2020-01-01',end.date = '2020-01-31')
+# Function to save publications data to parquet format
+save_publications_parquet <- function(publications_df, year_range_label) {
+  
+  # Create directory if it doesn't exist
+  # dir.create("Data/publications_oa_parquet", showWarnings = FALSE, recursive = TRUE)
+  
+  # Define file paths
+  main_file <- file.path("Data/publications_oa_parquet", paste0("publications_main_", year_range_label, ".parquet"))
+  authorships_file <- file.path("Data/publications_oa_parquet", paste0("authorships_", year_range_label, ".parquet"))
+  
+  cat("Processing", nrow(publications_df), "publications for", year_range_label, "...\n")
+  
+  # 1. Extract main publication data (excluding authorships)
+  main_data <- publications_df %>%
+    select(-authorships) %>%
+    # Convert remaining list columns to JSON strings for storage
+    mutate(
+      ids = map_chr(ids, ~ ifelse(is.null(.x), NA_character_, jsonlite::toJSON(.x, auto_unbox = TRUE))),
+      topics = map_chr(topics, ~ ifelse(is.null(.x), NA_character_, jsonlite::toJSON(.x, auto_unbox = TRUE))),
+      keywords = map_chr(keywords, ~ ifelse(is.null(.x), NA_character_, jsonlite::toJSON(.x, auto_unbox = TRUE))),
+      grants = map_chr(grants, ~ ifelse(is.null(.x) || (length(.x) == 1 && is.na(.x)), NA_character_, jsonlite::toJSON(.x, auto_unbox = TRUE)))
+    ) %>% rename(work_id = id)
+  
+  # Save main publication data
+  write_parquet(main_data, main_file)
+  cat("✓ Saved main data:", file.size(main_file) / 1024^2, "MB\n")
+  
+  # 2. Extract and save authorships data separately
+  authorships_data <- publications_df %>%
+    select(work_id = id, authorships) %>%
+    # Filter out rows where authorships is NULL or empty
+    filter(!map_lgl(authorships, ~ is.null(.x) || length(.x) == 0)) %>%
+    # Unnest the authorships
+    unnest(authorships) %>%
+    # clean up ids in the authorships block
+    mutate(author_id = clean_id(id), orcid = clean_id(orcid)) %>%
+    select(-id) %>%
+    # mutate(affiliations = map(affiliations, function(affil_df) {
+    #   if (is.null(affil_df) || nrow(affil_df) == 0) {
+    #     return(NULL)
+    #   }
+    #   affil_df %>%
+    #     mutate(
+    #       # Clean IDs and rename id to inst_id
+    #       inst_id = clean_id(id),
+    #       ror = clean_id(ror),
+    #       lineage = clean_id(lineage)
+    #     ) %>%
+    #     select(-id) %>%  # Remove original id column
+    #     select(inst_id, everything())  # Put inst_id first
+    # }),) %>%
+    # Convert the nested affiliations list-column to JSON string
+    mutate(
+      affiliations = map_chr(affiliations, ~ ifelse(is.null(.x) || length(.x) == 0, 
+                                                   NA_character_, 
+                                                   jsonlite::toJSON(.x, auto_unbox = TRUE)))
+    )
+    
+  # Save authorships data
+  write_parquet(authorships_data, authorships_file)
+  cat("✓ Saved authorships data:", file.size(authorships_file) / 1024^2, "MB\n")
+  
+  # Print summary
+  cat("Summary for", year_range_label, ":\n")
+  cat("  - Publications:", nrow(publications_df), "\n")
+  cat("  - Total authorships:", nrow(authorships_data), "\n")
+  cat("  - Files saved in: Data/publications_oa_parquet/\n\n")
+  
+  # Return summary information
+  return(list(
+    year_range = year_range_label,
+    n_publications = nrow(publications_df),
+    n_authorships = nrow(authorships_data),
+    main_file_size_mb = round(file.size(main_file) / 1024^2, 2),
+    authorships_file_size_mb = round(file.size(authorships_file) / 1024^2, 2)
+  ))
+}
 
-saveRDS(publications_df,paste0('OA_',start.date,'_',end.date,'.rdata'))
+dateranges = data.frame(start.date = c('2000-01-01','2008-01-01','2013-01-01','2017-01-01','2020-01-01','2022-01-01','2024-01-01'),
+                        end.date =  c( '2007-12-31','2012-12-31','2016-12-31','2019-12-31','2021-12-31','2023-12-31','2024-12-31'))
+
+# for(i in 1:nrow(dateranges)) {
+#   publications_df = get_openalex_data(start.date = dateranges$start.date[i],end.date = dateranges$end.date[i])
+#   save_publications_parquet(publications_df, year_range_label = paste(dateranges$start.date[i],dateranges$end.date[i],sep= '_'))
+# }
+
 
 
 # Process the publications data -------------------------------------------
 
-files = list.files(path = 'Data',pattern = '^OA_.*.rdata$', full.names = T)
-
-publications_df = tibble()
-
-for(i in files) {
-  dat = readRDS(i)
-  publications_df = bind_rows(publications_df,dat)
-  rm(dat)
-}
-
-publications_df = publications_df 
-
-# Method 3: Separate main table from nested data (recommended for complex analysis)
-# This approach gives you more control over the nested structures
-
-# Extract the main publication data (non-list columns)
-main_cols <- publications_df %>%
-  select(-authorships, -topics, -keywords, -ids, -grants) %>%
-  # Convert any remaining list columns to character if needed
-  mutate(across(where(is.list), ~ map_chr(.x, ~ ifelse(is.null(.x), NA_character_, as.character(.x)))))
-
-# Save main publication data
-write_parquet(main_cols, "Data/publications_oa_parquet/publications_main.parquet")
-
-# Extract and save nested data separately
-# Authorships data
-authorships_expanded <- publications_df %>%
-  select(id, authorships) %>%
-  filter(!map_lgl(authorships, is.null)) %>%
-  unnest(authorships) %>%
-  # Add publication_id for joining back
-  rename(publication_id = id)
-
-write_parquet(authorships_expanded, "Data/publications_oa_parquet/publications_authorships.parquet")
-
-# Topics data
-topics_expanded <- publications_df %>%
-  select(id, topics) %>%
-  filter(!map_lgl(topics, is.null)) %>%
-  unnest(topics) %>%
-  rename(publication_id = id)
-
-write_parquet(topics_expanded, "publications_topics.parquet")
-
-# Keywords data (handle potential NULL values)
-keywords_expanded <- publications_df %>%
-  select(id, keywords) %>%
-  filter(!map_lgl(keywords, is.null)) %>%
-  unnest(keywords) %>%
-  rename(publication_id = id)
-
-write_parquet(keywords_expanded, "publications_keywords.parquet")
-
-# IDs data (multiple identifiers per publication)
-if (any(!map_lgl(publications_df$ids, is.null))) {
-  ids_expanded <- publications_df %>%
-    select(id, ids) %>%
-    filter(!map_lgl(ids, is.null)) %>%
-    unnest_longer(ids) %>%
-    rename(publication_id = id, identifier = ids)
+read_publications_dataset <- function() {
   
-  write_parquet(ids_expanded, "publications_ids.parquet")
-}
-
-# Grants data (if any grants exist)
-if (any(!map_lgl(publications_df$grants, is.null))) {
-  grants_expanded <- publications_df %>%
-    select(id, grants) %>%
-    filter(!map_lgl(grants, is.null)) %>%
-    unnest(grants) %>%
-    rename(publication_id = id)
+  # Get all main publication files
+  main_files <- list.files("Data/publications_oa_parquet", 
+                          pattern = "publications_main_.*\\.parquet$", 
+                          full.names = TRUE)
   
-  write_parquet(grants_expanded, "publications_grants.parquet")
+  # Get all authorships files
+  auth_files <- list.files("Data/publications_oa_parquet", 
+                          pattern = "authorships_.*\\.parquet$", 
+                          full.names = TRUE)
+  
+  cat("Found", length(main_files), "main publication files\n")
+  cat("Found", length(auth_files), "authorships files\n")
+  
+  # Read and combine main data
+  main_data_list <- map(main_files, read_parquet)
+  main_data <- bind_rows(main_data_list)
+  
+  # Read and combine authorships data
+  auth_data_list <- map(auth_files, read_parquet)
+  auth_data <- bind_rows(auth_data_list)
+  
+  cat("Total publications:", nrow(main_data), "\n")
+  cat("Total authorships:", nrow(auth_data), "\n")
+  
+  return(list(main_data = main_data, auth_data = auth_data))
 }
 
+# Read the data
+dataset <- read_publications_dataset()
+main_data <- dataset$main_data
+auth_data <- dataset$auth_data
 
-
-
-
-
-publications_df = publications_df %>% select(-rownum)
-rm(auth100,files)
+oa_dois <- main_data %>%
+  filter(!is.na(doi)) %>%
+  distinct(doi) %>%
+  pull(doi) %>% clean_id() %>% tolower()
 
 #Now OpenAlex will miss collaborative publications where the author from India or Switzerland is in the list later than 100.
 #So quickly load in the WoS and Scopus data, check all the DOIs that are present there, and not present in openAlex data.
 paper.details.ws = readRDS(file = 'Data/publication_details.RData')
 ws_dois = tolower(paper.details.ws$doi) #%>% str_c('https://doi.org/')
-oa_dois = tolower(publications_df$doi) %>% str_remove('https://doi.org/')
 missing_dois = setdiff(ws_dois,oa_dois)
 
 # TODO Now check if these doi entries are in openAlex
@@ -677,26 +719,39 @@ dois = missing_dois %>% filter(nAuthors < 100) %>% pull(doi)
 batch_size <- 50
 doi_batches <- split(dois, ceiling(seq_along(dois) / batch_size))
 
-# fetch in batches and row-bind results
+select_fields = "id,title,display_name,authorships,doi,publication_date,publication_year,primary_location,sources,institution_assertions,countries_distinct_count,institutions_distinct_count,is_authors_truncated,primary_topic,cited_by_count,ids,type,topics,keywords,is_retracted,grants,abstract_inverted_index"
+select_fields <- unlist(str_split(select_fields, ','))
+
+# Fetch in batches and row-bind results
 all_works <- purrr::map_dfr(doi_batches, function(batch) {
-  # query OpenAlex for these DOIs (entity = "works" returns metadata for publications)
-  out <- tryCatch(
-    oa_fetch(entity = "works", doi = batch),
-    error = function(e) {
-      warning("Failed batch: ", paste(batch, collapse = ", "), " → ", e$message)
-      tibble()  # return empty on error
-    }
-  )
+  cat("Processing batch with", length(batch), "DOIs...\n")
+  
+  # Query OpenAlex for these DOIs
+  out <- tryCatch({
+    oa_fetch(
+      entity = "works", 
+      doi = batch, 
+      mailto = 'siddharth.bharath@protonmail.com',
+      options = list(select = select_fields)
+    )
+  }, error = function(e) {
+    warning("Failed batch: ", paste(head(batch, 3), collapse = ", "), "... → ", e$message)
+    return(tibble())  # return empty tibble on error
+  })
+  
   Sys.sleep(0.2)  # small pause to respect API rate limits
-  out
+  return(out)
 })
 
+
+save_publications_parquet(all_works %>% filter(map_int(authorships, nrow) < 100),
+                          'from_WoS-Scopus_1')
 #Now get the ones that have more than 100 authors
 
 dois = missing_dois %>% filter(nAuthors >= 100) %>% pull(doi)
 
-# split into batches of 10
-batch_size  <- 10
+# split into batches of 50
+batch_size  <- 50
 doi_batches <- split(dois, ceiling(seq_along(dois) / batch_size))
 
 # fetch only id + doi for each batch, then bind into one tibble
@@ -716,171 +771,308 @@ work_ids_tbl <- purrr::map_dfr(doi_batches, function(batch) {
 
 nauth = all_works %>% 
   filter(map_int(authorships, nrow) == 100) %>% select(id,doi)
-all_works = all_works %>% filter(map_int(authorships, nrow) != 100)
+work_ids_tbl = bind_rows(work_ids_tbl,nauth)
+work_ids_tbl$id = clean_id(work_ids_tbl$id)
+big_works = tibble()
 
+library(progress)
+pb <- progress_bar$new(
+  format = "[:bar] :percent (:current/:total) ETA: :eta",
+  total = nrow(work_ids_tbl),
+  clear = FALSE
+)
 
-for(i in 1:nrow(work_ids_tbl)) {
-  query_params <- paste0("https://api.openalex.org/works/",clean_id(work_ids_tbl$id[i]),"?mailto=siddharth.bharath@protonmail.com,")
+for(i in 351:nrow(work_ids_tbl)) {
+  pb$tick()
+  query_params <- paste0("https://api.openalex.org/works/",work_ids_tbl$id[i],"?mailto=siddharth.bharath@protonmail.com&select=id,title,display_name,authorships,doi,publication_date,publication_year,primary_location,sources,institution_assertions,countries_distinct_count,institutions_distinct_count,is_authors_truncated,primary_topic,cited_by_count,ids,type,topics,keywords,is_retracted,grants,abstract_inverted_index")
   response <- oa_request(query_url = query_params)
   x = oa2df(data = response, entity = 'works')
-  all_works = bind_rows(all_works,x)
+  big_works = bind_rows(big_works,x)
   rm(x,response)
-  if(i%%3 == 0) print(i)
+  if(i%%350==0) {
+    save_publications_parquet(big_works,
+                          paste0('from_WoS-Scopus_3-',floor(i/350)))
+    big_works = tibble()
+  }
+}
+save_publications_parquet(big_works,
+                          paste0('from_WoS-Scopus_3-',ceiling(i/350)))
+
+
+# 
+# saveRDS(all_works, 'Data/Additional_openAlex.rdata')
+# 
+# publications_df = bind_rows(publications_df,all_works) %>%
+#   group_by(id) %>% slice_tail(n = 1) %>%
+#   select(-concepts,-apc,-referenced_works,-related_works,-referenced_works_count, -landing_page_url,-counts_by_year)
+# 
+# # big_works = readRDS('Data/Additional_openAlex_big.rdata')
+# 
+# saveRDS(publications_df, 
+#         'Data/openAlex_df_2000-2024.rdata')
+
+```
+
+```{r Organise and save openalex data}
+# Load required libraries
+# library(arrow)
+# library(dplyr)
+# library(purrr)
+# library(jsonlite)
+library(stringr)
+library(data.table)  # For faster processing
+
+# Read all data efficiently
+read_all_data <- function() {
+  main_files <- list.files("Data/publications_oa_parquet", 
+                          pattern = "publications_main_.*\\.parquet$", 
+                          full.names = TRUE)
+  auth_files <- list.files("Data/publications_oa_parquet", 
+                          pattern = "authorships_.*\\.parquet$", 
+                          full.names = TRUE)
+  
+  main_data <- map_dfr(main_files, read_parquet)
+  auth_data <- map_dfr(auth_files, read_parquet)
+  
+  return(list(main_data = main_data, auth_data = auth_data))
 }
 
-saveRDS(all_works, 'Data/Additional_openAlex.rdata')
+# 1. COMPREHENSIVE DATA QUALITY CHECKS
+run_data_quality_checks <- function() {
+  
+  cat("=== READING DATA ===\n")
+  dataset <- read_all_data()
+  main_data <- dataset$main_data
+  auth_data <- dataset$auth_data
+  
+  cat("Main data:", nrow(main_data), "rows\n")
+  cat("Auth data:", nrow(auth_data), "rows\n\n")
+  
+  cat("=== PUBLICATIONS WITH 0 AUTHORSHIP DATA ===\n")
+  
+  # Find publications with no authorship data
+  pubs_with_authors <- unique(auth_data$publication_id)
+  pubs_without_authors <- main_data$id[!main_data$id %in% pubs_with_authors]
+  
+  cat("Publications without authors:", length(pubs_without_authors), "\n")
+  cat("Percentage without authors:", round(length(pubs_without_authors)/nrow(main_data)*100, 2), "%\n\n")
+  
+  if (length(pubs_without_authors) > 0) {
+    cat("Sample publications without authors:\n")
+    main_data %>% 
+      filter(id %in% head(pubs_without_authors, 5)) %>%
+      select(id, title, publication_year) %>%
+      print()
+  }
+  
+  cat("\n=== AFFILIATIONS DATA STRUCTURE CHECK ===\n")
+  
+  # Sample affiliations to check structure
+  sample_affiliations <- auth_data %>% 
+    filter(!is.na(affiliations)) %>% 
+    slice_head(n = 10) %>%
+    pull(affiliations)
+  
+  # Check first few affiliations structures
+  for(i in 1:min(3, length(sample_affiliations))) {
+    cat("Sample", i, "affiliations structure:\n")
+    parsed <- fromJSON(sample_affiliations[i])
+    cat("Columns:", paste(names(parsed), collapse = ", "), "\n")
+    if ("id" %in% names(parsed)) {
+      cat("⚠️  Found 'id' column - needs renaming to 'inst_id'\n")
+    }
+    if ("inst_id" %in% names(parsed)) {
+      cat("✓ Found 'inst_id' column\n")
+    }
+    cat("\n")
+  }
+  
+  cat("=== TOPICS DATA STRUCTURE CHECK ===\n")
+  
+  # Check topics structure
+  sample_topics <- main_data %>% 
+    filter(!is.na(topics)) %>% 
+    slice_head(n = 3) %>%
+    pull(topics)
+  
+  for(i in 1:min(2, length(sample_topics))) {
+    cat("Sample", i, "topics structure:\n")
+    parsed <- fromJSON(sample_topics[i])
+    cat("Columns:", paste(names(parsed), collapse = ", "), "\n")
+    if (any(str_detect(parsed$id, "https://"))) {
+      cat("⚠️  Found URLs in topics IDs - need cleaning\n")
+    }
+    cat("\n")
+  }
+  
+  return(list(
+    pubs_without_authors = pubs_without_authors,
+    total_pubs = nrow(main_data),
+    total_auths = nrow(auth_data)
+  ))
+}
 
-publications_df = bind_rows(publications_df,all_works) %>%
-  group_by(id) %>% slice_tail(n = 1) %>%
-  select(-concepts,-apc,-referenced_works,-related_works,-referenced_works_count, -landing_page_url,-counts_by_year)
+# 2. FAST JSON STRING PROCESSING FUNCTIONS
+# These work directly on JSON strings - much faster than parsing and re-processing
 
-# big_works = readRDS('Data/Additional_openAlex_big.rdata')
+# Fast clean_id on JSON strings
+clean_affiliations_json_fast <- function(json_str) {
+  if (is.na(json_str)) return(NA_character_)
+  
+  # Use string replacement directly on JSON - much faster
+  json_str %>%
+    # Clean URLs in id, ror, lineage fields
+    str_replace_all('"id":"https://openalex\\.org/', '"inst_id":"') %>%
+    str_replace_all('"ror":"https://ror\\.org/', '"ror":"') %>%
+    str_replace_all('"lineage":"https://openalex\\.org/', '"lineage":"') %>%
+    # Remove any remaining id field and replace with inst_id if needed
+    str_replace_all('"id":', '"inst_id":')
+}
 
-saveRDS(publications_df, 
-        'Data/openAlex_df_2000-2024.rdata')
+clean_topics_json_fast <- function(json_str) {
+  if (is.na(json_str)) return(NA_character_)
+  
+  # Clean URLs in topics JSON
+  json_str %>%
+    str_replace_all('https://openalex\\.org/', '') %>%
+    str_replace_all('https://doi\\.org/', '')
+}
 
-#creating a schema for saving it in Arrow
-# 1. A quick “glimpse” of top-level classes
-dplyr::glimpse(publications_df)
-
-# 2. A table of each column’s R class
-tibble(
-  name          = names(publications_df),
-  top_class     = map_chr(publications_df, ~ paste(class(.), collapse="/"))
-)
-
-# 3. For list-columns, what’s inside the first element?
-list_cols <- names(publications_df)[purrr::map_lgl(publications_df, is.list)]
-purrr::map(publications_df[list_cols], ~ class(.x[[1]]) )
-
-# 4. (If you have nested tibbles) for each list-column that’s a data‐frame:
-purrr::map(publications_df[list_cols], ~ if (inherits(.x[[1]], "data.frame")) str(.x[[1]]))
-
-#Some entries are missing the Authorship data correctly. So replace those with a 0 x 7 dataframe
-proto <- publications_df$authorships %>% 
-  keep(~ is.data.frame(.x) && ncol(.x) > 0) %>% 
-  first()
-
-# 2) Make an empty version (0 rows, same columns & types)
-proto_empty <- proto[0, ]
-
-# 3) Replace every 0×0 authorships with that empty prototype
-publications_df <- publications_df %>%
-  mutate(
-    authorships = map(authorships, ~ {
-      if (is.data.frame(.x) && ncol(.x) == 0) {
-        proto_empty
-      } else {
-        .x
-      }
-    })
-  )
-
-# 2) Define the full Arrow schema
-my_schema <- schema(
-  id                          = utf8(),
-  title                       = utf8(),
-  display_name                = utf8(),
-  authorships                 = list_of(
-    struct(
-      id                   = utf8(),
-      display_name         = utf8(),
-      # orcid                = utf8(),
-      author_position      = utf8(),
-      is_corresponding     = bool(),
-      affiliations         = list_of(
-        struct(
-          id              = utf8(),
-          display_name    = utf8(),
-          ror             = utf8(),
-          country_code    = utf8(),
-          type            = utf8(),
-          lineage         = utf8()
-        )
-      ),
-      affiliation_raw      = utf8()
+# 3. OPTIMIZED PROCESSING FUNCTION
+process_data_optimized <- function(batch_size = 50000) {
+  
+  cat("=== READING DATA FOR PROCESSING ===\n")
+  dataset <- read_all_data()
+  main_data <- dataset$main_data
+  auth_data <- dataset$auth_data
+  
+  cat("=== PROCESSING TOPICS (MAIN DATA) ===\n")
+  
+  # Process topics in main data using fast string operations
+  main_data_clean <- main_data %>%
+    mutate(
+      topics = map_chr(topics, clean_topics_json_fast),
+      # Also clean other JSON fields if needed
+      ids = map_chr(ids, clean_topics_json_fast),  # Remove URLs from IDs
+      keywords = keywords  # Keep as is for now
     )
-  ),
-  abstract                    = utf8(),
-  doi                         = utf8(),
-  publication_date            = date32(),    # days-since-1970
-  publication_year            = int32(),
-  fwci                        = float64(),
-  cited_by_count              = int32(),
-  cited_by_api_url            = utf8(),
-  ids                         = list_of(utf8()),
-  type                        = utf8(),
-  is_oa                       = bool(),
-  is_oa_anywhere              = bool(),
-  oa_status                   = utf8(),
-  oa_url                      = utf8(),
-  any_repository_has_fulltext = bool(),
-  source_display_name         = utf8(),
-  source_id                   = utf8(),
-  issn_l                      = utf8(),
-  host_organization           = utf8(),
-  host_organization_name      = utf8(),
-  pdf_url                     = utf8(),
-  license                     = utf8(),
-  version                     = utf8(),
-  topics                      = list_of(
-    struct(
-      i               = int32(),
-      score           = float64(),
-      id              = utf8(),
-      display_name    = utf8(),
-      type            = utf8()
-    )
-  ),
-  keywords                    = list_of(
-    struct(
-      id              = utf8(),
-      display_name    = utf8(),
-      score           = float64()
-    )
-  ),
-  is_paratext                 = bool(),
-  is_retracted                = bool(),
-  language                    = utf8(),
-  grants                      = list_of(utf8()),
-  first_page                  = utf8(),
-  last_page                   = utf8(),
-  volume                      = utf8(),
-  issue                       = utf8()
-)
+  
+  cat("✓ Topics cleaned\n")
+  
+  cat("=== PROCESSING AFFILIATIONS (AUTH DATA) ===\n")
+  
+  # Convert to data.table for faster processing
+  auth_dt <- as.data.table(auth_data)
+  
+  # Process in batches to manage memory
+  n_batches <- ceiling(nrow(auth_dt) / batch_size)
+  cat("Processing", nrow(auth_dt), "rows in", n_batches, "batches\n")
+  
+  processed_batches <- list()
+  
+  for(i in 1:n_batches) {
+    start_idx <- (i-1) * batch_size + 1
+    end_idx <- min(i * batch_size, nrow(auth_dt))
+    
+    cat("Batch", i, "of", n_batches, "(rows", start_idx, "to", end_idx, ")\n")
+    
+    batch_data <- auth_dt[start_idx:end_idx]
+    
+    # Fast JSON processing
+    batch_data[, affiliations_clean := clean_affiliations_json_fast(affiliations)]
+    
+    processed_batches[[i]] <- as_tibble(batch_data)
+  }
+  
+  auth_data_clean <- bind_rows(processed_batches)
+  
+  cat("✓ Affiliations cleaned\n")
+  
+  return(list(
+    main_data = main_data_clean,
+    auth_data = auth_data_clean
+  ))
+}
 
-publications_df <- publications_df %>%
-  mutate(
-    authorships = map(authorships, ~
-      # for each tibble of authors, drop the orcid column
-      .x %>% select(-orcid)
-    )
-  )
+# 4. SAVE CLEANED DATA
+save_cleaned_data <- function(cleaned_data, suffix = "cleaned") {
+  
+  main_data <- cleaned_data$main_data
+  auth_data <- cleaned_data$auth_data
+  
+  # Create cleaned directory
+  dir.create("Data/publications_oa_parquet_cleaned", showWarnings = FALSE, recursive = TRUE)
+  
+  # Save cleaned main data
+  main_file <- file.path("Data/publications_oa_parquet_cleaned", 
+                        paste0("publications_main_", suffix, ".parquet"))
+  write_parquet(main_data, main_file)
+  
+  # Save cleaned auth data  
+  auth_file <- file.path("Data/publications_oa_parquet_cleaned", 
+                        paste0("authorships_", suffix, ".parquet"))
+  write_parquet(auth_data, auth_file)
+  
+  cat("✓ Cleaned data saved to:", dirname(main_file), "\n")
+  cat("Main data size:", round(file.size(main_file) / 1024^2, 1), "MB\n")
+  cat("Auth data size:", round(file.size(auth_file) / 1024^2, 1), "MB\n")
+}
 
-# 3) Create an Arrow Table with that schema
-tbl <- Table$create(publications_df, schema = my_schema)
+# 5. VALIDATION FUNCTION
+validate_cleaned_data <- function() {
+  
+  # Read cleaned data
+  main_file <- "Data/publications_oa_parquet_cleaned/publications_main_cleaned.parquet"
+  auth_file <- "Data/publications_oa_parquet_cleaned/authorships_cleaned.parquet"
+  
+  if (!file.exists(main_file) || !file.exists(auth_file)) {
+    cat("❌ Cleaned files not found. Run processing first.\n")
+    return(FALSE)
+  }
+  
+  main_data <- read_parquet(main_file)
+  auth_data <- read_parquet(auth_file)
+  
+  cat("=== VALIDATION RESULTS ===\n")
+  
+  # Check topics cleaning
+  sample_topics <- main_data %>% filter(!is.na(topics)) %>% slice_head(n=3) %>% pull(topics)
+  topics_have_urls <- any(str_detect(sample_topics, "https://", na.rm = TRUE))
+  cat("Topics still have URLs:", topics_have_urls, ifelse(topics_have_urls, "❌", "✓"), "\n")
+  
+  # Check affiliations cleaning
+  sample_affils <- auth_data %>% filter(!is.na(affiliations_clean)) %>% slice_head(n=3) %>% pull(affiliations_clean)
+  affils_have_urls <- any(str_detect(sample_affils, "https://openalex\\.org/", na.rm = TRUE))
+  cat("Affiliations still have URLs:", affils_have_urls, ifelse(affils_have_urls, "❌", "✓"), "\n")
+  
+  # Check for inst_id vs id
+  sample_parsed <- fromJSON(sample_affils[1])
+  has_inst_id <- "inst_id" %in% names(sample_parsed)
+  has_old_id <- "id" %in% names(sample_parsed)
+  cat("Affiliations have inst_id:", has_inst_id, ifelse(has_inst_id, "✓", "❌"), "\n")
+  cat("Affiliations still have 'id':", has_old_id, ifelse(has_old_id, "❌", "✓"), "\n")
+  
+  return(TRUE)
+}
 
-# 4) Write out a segmented Parquet dataset
-write_dataset(tbl, "metadata_parquet/", format = "parquet")
+# USAGE:
+cat("=== RUNNING DATA QUALITY CHECKS ===\n")
+quality_results <- run_data_quality_checks()
 
+cat("\n=== PROCESSING DATA WITH OPTIMIZATIONS ===\n")
+cleaned_data <- process_data_optimized(batch_size = 10000)  # Adjust batch size based on memory
 
+cat("\n=== TO SAVE CLEANED DATA, RUN ===\n")
+cat("save_cleaned_data(cleaned_data)\n")
 
-write_dataset(publications_df, 'Data/publications_oa_parquet/', format = 'parquet')
-
+cat("\n=== TO VALIDATE CLEANED DATA, RUN ===\n")
+cat("validate_cleaned_data()\n")
 
 ```
 
 
+
 ```{r Process openAlex, echo = F}
-
-# dat_authors = publications_df %>%
-#   select(work_id = id,work_title = display_name, authorships) %>%
-#   unnest(cols = 'authorships',names_repair = 'unique') %>% 
-#   rename(author_id = id, author_name = display_name) %>%
-#   unnest(cols = 'affiliations') %>%
-#   rename(inst_id = id, inst_name = display_name)
-
-publications_df = readRDS('Data/openAlex_df_2000-2024.rdata')
 
 
 
@@ -897,10 +1089,8 @@ processed_data <- publications_df %>% slice_sample(n=10) %>%
       # Unnest the affiliations for each author. This is the key step.
       # Each row will now be one author affiliated with one institution for that paper.
       author_inst <- authors_df %>%
-        mutate(author_id = clean_id(id), orcid= str_remove(orcid,"https://orcid.org/")) %>%
         select(author_id, author_name = display_name, orcid, affiliations) %>%
         unnest(affiliations, keep_empty = TRUE) %>%
-        mutate(inst_id = clean_id(id), ror = str_remove(ror,'https://ror.org/')) %>%
         select(author_id, orcid, author_name, inst_name = display_name, inst_id, ror, country_code)
       
       author_inst %>% nest(institutions = any_of(c('inst_name', 'inst_id', 'ror', 'country_code')))
