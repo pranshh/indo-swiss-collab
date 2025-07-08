@@ -532,47 +532,104 @@ clean_id <- function(id) {
   str_remove_all(id, "(https://openalex.org/)|(https://ror.org/)|(https://doi.org/)|(https://orcid.org/)")
 }
 
-get_openalex_data = function(start.date,end.date) {
-  query_params <- paste0("https://api.openalex.org/works?",
-                       "filter=",
-                       "authorships.institutions.country_code:in,",
-                  "authorships.institutions.country_code:ch,",
-                  "from_publication_date:",start.date,',',
-                  "to_publication_date:",end.date,
-                  "&select=id,title,display_name,authorships,doi,publication_date,publication_year,primary_location,sources,institution_assertions,countries_distinct_count,institutions_distinct_count,is_authors_truncated,primary_topic,cited_by_count,ids,type,topics,keywords,is_retracted,grants,abstract_inverted_index")
-
-
-print("Requesting URL from OpenAlex API...")
-response <- oa_request(query_url = URLencode(query_params), mailto = 'siddharth.bharath@protonmail.com')
-
-publications_df = oa2df(data = response, entity = 'works')
-
-printo('Downloaded ',nrow(publications_df),' works from openAlex in this period.')
-
-#Individually get the full authorships data for whichever have truncated records
-#Now, any publication with exactly 100 authors is one that has more authors. 
-# So we have to query the API to get the information of that single publication
-
-publications_df = mutate(publications_df, rownum = row_number(), id = clean_id(id), doi = clean_id(doi), source_id = clean_id(source_id), host_organization = clean_id(host_organization))
-
-auth100 = publications_df %>% filter(map_int(authorships, nrow) == 100) %>% pull(rownum)
-
-if(length(auth100) > 0) {
-  printo(length(auth100), ' of these publications have more than 100 authors. Getting their details separately from openAlex.')
-  for(i in auth100) {
-  query_params <- paste0("https://api.openalex.org/works/",clean_id(publications_df$id[i]),"&select=id,authorships")
-  response <- oa_request(query_url = query_params)
-  x = oa2df(data = response, entity = 'works')$authorships
-  publications_df$authorships[i] = x
-  rm(x,response)
-  if(i%%3 == 0) print(i)
+get_openalex_data = function(start.date = NULL, end.date = NULL, dois = NULL) {
+  # Validate input parameters
+  if (is.null(start.date) && is.null(end.date) && is.null(dois)) {
+    stop("Must provide either date range (start.date and end.date) or DOI list (dois)")
+  }
+  
+  if (!is.null(start.date) && !is.null(end.date) && !is.null(dois)) {
+    stop("Cannot provide both date range and DOI list - choose one mode")
+  }
+  
+  if ((!is.null(start.date) && is.null(end.date)) || (is.null(start.date) && !is.null(end.date))) {
+    stop("Both start.date and end.date must be provided for date range mode")
+  }
+  
+  # Define common select fields
+  select_fields <- "id,title,display_name,authorships,doi,publication_date,publication_year,primary_location,sources,institution_assertions,countries_distinct_count,institutions_distinct_count,is_authors_truncated,primary_topic,cited_by_count,ids,type,topics,keywords,is_retracted,grants,abstract_inverted_index"
+  
+  # Mode 1: Date range mode (original functionality)
+  if (!is.null(start.date) && !is.null(end.date)) {
+    print("Mode: Date range query")
+    query_params <- paste0("https://api.openalex.org/works?",
+                         "filter=",
+                         "authorships.institutions.country_code:in,",
+                         "authorships.institutions.country_code:ch,",
+                         "from_publication_date:",start.date,',',
+                         "to_publication_date:",end.date,
+                         "&select=",select_fields)
+    print("Requesting URL from OpenAlex API...")
+    response <- oa_request(query_url = URLencode(query_params), mailto = 'siddharth.bharath@protonmail.com')
+    publications_df <- oa2df(data = response, entity = 'works')
+    print(paste('Downloaded', nrow(publications_df), 'works from OpenAlex in this period.'))
+  } 
+  
+  # Mode 2: DOI list mode
+  else if (!is.null(dois)) {
+    print("Mode: DOI list query")
+    # Split into batches of 50
+    batch_size <- 50
+    doi_batches <- split(dois, ceiling(seq_along(dois) / batch_size))
+    select_fields_vector <- unlist(str_split(select_fields, ','))
+    
+    # Fetch in batches and row-bind results
+    publications_df <- purrr::map_dfr(doi_batches, function(batch) {
+      cat("Processing batch with", length(batch), "DOIs...\n")
+      
+      # Query OpenAlex for these DOIs
+      out <- tryCatch({
+        oa_fetch(
+          entity = "works", 
+          doi = batch, 
+          mailto = 'siddharth.bharath@protonmail.com',
+          options = list(select = select_fields_vector)
+        )
+      }, error = function(e) {
+        warning("Failed batch: ", paste(head(batch, 3), collapse = ", "), "... → ", e$message)
+        return(tibble())  # return empty tibble on error
+      })
+      
+      Sys.sleep(0.2)  # small pause to respect API rate limits
+      return(out)
+    })
+    
+    print(paste('Downloaded', nrow(publications_df), 'works from OpenAlex using DOI list.'))
+  }
+  
+  # Common processing for both modes: handle truncated authorships
+  if (nrow(publications_df) > 0) {
+    publications_df <- mutate(publications_df, 
+                             rownum = row_number(), 
+                             id = clean_id(id), 
+                             doi = clean_id(doi), 
+                             source_id = clean_id(source_id), 
+                             host_organization = clean_id(host_organization))
+    
+    # Find publications with exactly 100 authors (indicating truncation)
+    auth100 <- publications_df %>% 
+      filter(map_int(authorships, nrow) == 100) %>% 
+      pull(rownum)
+    
+    if(length(auth100) > 0) {
+      print(paste(length(auth100), 'of these publications have more than 100 authors. Getting their details separately from OpenAlex.'))
+      
+      for(i in auth100) {
+        query_params <- paste0("https://api.openalex.org/works/",clean_id(publications_df$id[i]),"?select=id,authorships")
+        response <- oa_request(query_url = query_params, mailto = 'siddharth.bharath@protonmail.com')
+        x <- oa2df(data = response, entity = 'works')$authorships
+        publications_df$authorships[i] <- x
+        rm(x, response)
+        if(i %% 3 == 0) print(paste("Processed", i, "of", length(auth100), "truncated records"))
+      }
+    }
+    
+    return(publications_df %>% select(-rownum))
+  } else {
+    warning("No publications found")
+    return(tibble())
+  }
 }
-}
-
-return(publications_df %>% select(-rownum))
-
-}
-
 # Function to save publications data to parquet format
 save_publications_parquet <- function(publications_df, year_range_label) {
   
