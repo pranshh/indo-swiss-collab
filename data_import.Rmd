@@ -529,8 +529,32 @@ library(openalexR)
 # Helper function to remove the OpenAlex URL prefix from IDs
 
 clean_id <- function(id) {
-  str_remove_all(id, "(https://openalex.org/)|(https://ror.org/)|(https://doi.org/)|(https://orcid.org/)")
+  str_remove_all(id, "(https://openalex\\.org/)|(https://ror\\.org/)|(https://doi\\.org/)|(https://orcid\\.org/)")
 }
+
+# Fast clean_id on JSON strings
+clean_affiliations_json_fast <- function(json_str) {
+  if (is.na(json_str)) return(NA_character_)
+  
+  # Use string replacement directly on JSON - much faster
+  json_str %>%
+    # Clean URLs in id, ror, lineage fields
+    str_replace_all('"id":"https://openalex\\.org/', '"inst_id":"') %>%
+    str_replace_all('"ror":"https://ror\\.org/', '"ror":"') %>%
+    str_replace_all('"lineage":"https://openalex\\.org/', '"lineage":"') %>%
+    # Remove any remaining id field and replace with inst_id if needed
+    str_replace_all('"id":', '"inst_id":')
+}
+
+clean_topics_json_fast <- function(json_str) {
+  if (is.na(json_str)) return(NA_character_)
+  
+  # Clean URLs in topics JSON
+  json_str %>%
+    str_replace_all('https://openalex\\.org/', '') %>%
+    str_replace_all('https://doi\\.org/', '')
+}
+
 
 get_openalex_data = function(start.date,end.date) {
   query_params <- paste0("https://api.openalex.org/works?",
@@ -811,6 +835,24 @@ save_publications_parquet(big_works,
 # saveRDS(publications_df, 
 #         'Data/openAlex_df_2000-2024.rdata')
 
+#Now clean the data gotten from Pranshu
+
+paper.details.oa = read_parquet('Data/publication_combined_2000_2024.parquet')
+
+paper.details.oa = paper.details.oa %>% 
+  mutate(work_id = clean_id(work_id),doi = clean_id(doi),
+         source_id = clean_id(source_id), 
+         host_organization = clean_id(host_organization),
+         ids = clean_id(ids),
+         topics = clean_id(topics)
+         )
+
+write_parquet(paper.details.oa, 'Data/publication_combined_2000_2024.parquet')
+
+authorship.oa = read_parquet('Data/authorships_combined_2000_2024.parquet')
+
+str(authorship.oa)
+
 ```
 
 ```{r Organise and save openalex data}
@@ -912,31 +954,6 @@ run_data_quality_checks <- function() {
   ))
 }
 
-# 2. FAST JSON STRING PROCESSING FUNCTIONS
-# These work directly on JSON strings - much faster than parsing and re-processing
-
-# Fast clean_id on JSON strings
-clean_affiliations_json_fast <- function(json_str) {
-  if (is.na(json_str)) return(NA_character_)
-  
-  # Use string replacement directly on JSON - much faster
-  json_str %>%
-    # Clean URLs in id, ror, lineage fields
-    str_replace_all('"id":"https://openalex\\.org/', '"inst_id":"') %>%
-    str_replace_all('"ror":"https://ror\\.org/', '"ror":"') %>%
-    str_replace_all('"lineage":"https://openalex\\.org/', '"lineage":"') %>%
-    # Remove any remaining id field and replace with inst_id if needed
-    str_replace_all('"id":', '"inst_id":')
-}
-
-clean_topics_json_fast <- function(json_str) {
-  if (is.na(json_str)) return(NA_character_)
-  
-  # Clean URLs in topics JSON
-  json_str %>%
-    str_replace_all('https://openalex\\.org/', '') %>%
-    str_replace_all('https://doi\\.org/', '')
-}
 
 # 3. OPTIMIZED PROCESSING FUNCTION
 process_data_optimized <- function(batch_size = 50000) {
