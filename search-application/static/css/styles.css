@@ -160,7 +160,7 @@ html {
     color: #000;
     font-size: 20px;
     font-family: "Times New Roman", serif;
-    padding: 0 140px 0 40px;
+    padding: 0 80px 0 40px; 
     width: 100%;
     height: 100%;
 }
@@ -192,36 +192,6 @@ html {
 .search-icon {
     width: 32px;
     height: 32px;
-    stroke: #333;
-    stroke-width: 2;
-}
-
-/* Filter Toggle */
-.filter-toggle {
-    position: absolute;
-    right: 80px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #ffebeb;
-    border-radius: 50%;
-    width: 56px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: none;
-}
-
-.filter-toggle:hover {
-    background: #ffe0e0;
-    transform: translateY(-50%) scale(1.05);
-}
-
-.filter-icon {
-    width: 28px;
-    height: 28px;
     stroke: #333;
     stroke-width: 2;
 }
@@ -718,10 +688,12 @@ body {
     padding: 0;
     margin-bottom: 30px;
     overflow-x: auto;
+    width: 100%;
+    max-width: none;
 }
 
 .results-table {
-    width: 200%;
+    width: 100%;
     border-collapse: separate;
     border-spacing: 0;
     background: none;
