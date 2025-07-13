@@ -1,0 +1,257 @@
+---
+title: "Comparison of OpenAlex, Web of Science and Scopus"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+```{r setup, echo=F, eval =T}
+rm(list = ls())
+source('core_utilities.R')
+using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2','readxl','readr','purrr','knitr','tibble')
+using('countries')
+
+library(arrow)
+
+paper.details = read_feather('Data/openAlex_paper_details_flat.feather')
+
+paper.details = filter(paper.details,!is_retracted) %>% select(-is_retracted)
+
+paper.details.ws = readRDS(file = 'Data/publication_details.RData')
+
+#Retain articles - remove letters
+#Document types are mostly derived from Scopus. Look at https://www.ilovephd.com/list-of-document-types-covered-in-scopus/ - for details of what they refer to
+
+paper.details = paper.details %>% filter(document_type %in% c('article','book','book-chapter','dataset','letter','reference-entry','report','review')) %>% ungroup()
+
+printo("We are selecting only articles of the following types - 'article','book','book-chapter','dataset','letter','reference-entry','report','review'. This gives us 15089 out of 16480 entries")
+
+paper.details.ws = paper.details.ws %>% filter((grepl('Article',`document type`) | `document type` %in% c('Book','Book chapter', 'Conference paper','Data paper','Editorial Material; Book Chapter','Proceedings Paper', 'Review', 'Short survey')) & !grepl('Retract', `document type`))
+
+
+tot.papers = nrow(paper.details)
+
+#report the data that we have
+printo('We have ',tot.papers,' publications pulled from OpenAlex in our analysis. Of which ', sum(!is.na(paper.details$doi)), 'have DOI information.')
+printo()
+printo('There are ',nrow(paper.details.ws),' publications pulled from Web of Science and Scopus in our analysis.')
+# printo('The data sources of these publications are split as - \n',round(sum(paper.details$datasource == 'Both')/tot.papers*100),"% available in both databases,\n",round(sum(paper.details$datasource == 'Scopus')/tot.papers*100),"% available only from Scopus,\n",round(sum(paper.details$datasource == 'WoS')/tot.papers*100),"% available only from Web of Science.\n")
+
+
+
+```
+
+
+```{r Membership of different databases, echo = F}
+
+
+match.dois = paper.details %>% filter(!is.na(doi)) %>% select(publication_year,doi,datasource) %>% ungroup() %>%   
+  mutate(doi = tolower(str_remove(doi,"https://doi.org/"))) %>%
+  full_join(paper.details.ws %>% ungroup() %>% select(year, doi, datasource), by = 'doi') %>%
+  replace_na(list(datasource.x ='no', datasource.y = 'no')) %>%
+  mutate(Scopus = (datasource.y %in% c('Both','Scopus')),
+         WoS = (datasource.y %in% c('Both','WoS')),
+         OpenAlex = (datasource.x %in% c('OpenAlex'))) %>%
+  select(-datasource.x,-datasource.y) %>% mutate(nSources = Scopus + WoS + OpenAlex)
+
+#Check if there is conflict in publication year for overlapping entries
+diff = with(match.dois,publication_year-year)
+unmatched_year = match.dois %>% filter(!is.na(diff) & diff != 0) %>%
+  mutate(diff = publication_year-year) %>% arrange(desc(abs(diff)))
+#After manually checking about 20 entries, it looks like the OpenAlex data is better than our earlier data for publication year, so moving to using that
+match.dois = match.dois %>% mutate(publication_year = ifelse(is.na(publication_year), year,publication_year)) %>% select(-year)
+
+df_counts <- as.data.frame(with(match.dois, table(publication_year, Scopus, WoS, OpenAlex)))
+colnames(df_counts) <- c("Year","Scopus","WoS","OpenAlex","Count")
+
+# convert logicals and label each combination
+df_summary <- df_counts %>%
+  mutate(
+    Scopus    = as.logical(Scopus),
+    WoS       = as.logical(WoS),
+    OpenAlex  = as.logical(OpenAlex),
+    Source    = case_when(
+      Scopus & !WoS   & !OpenAlex ~ "Scopus only",
+      !Scopus & WoS   & !OpenAlex ~ "WoS only",
+      !Scopus & !WoS  & OpenAlex  ~ "OpenAlex only",
+      Scopus & WoS    & !OpenAlex ~ "Scopus & WoS",
+      Scopus & !WoS   & OpenAlex  ~ "Scopus & OpenAlex",
+      !Scopus & WoS   & OpenAlex  ~ "WoS & OpenAlex",
+      Scopus & WoS    & OpenAlex  ~ "All three",
+      TRUE                        ~ "None"
+    )
+  ) %>%
+  select(Year,Source, Count) %>%
+  arrange(Year,desc(Count))
+
+df_summary = df_summary %>% group_by(Year) %>% summarise(yr_total = sum(Count)) %>%
+  right_join(df_summary) %>%
+  mutate(pct = round(Count/yr_total*100), Year = as.numeric(Year)) %>% filter(Source != 'None')
+
+ggplot(data = df_summary, aes(x = Year, y = pct, color = Source, shape = Source)) +
+  geom_line() + geom_point() + theme_bw()
+
+# install if needed
+if (!requireNamespace("ComplexUpset", quietly = TRUE)) {
+  install.packages("ComplexUpset")
+}
+library(ComplexUpset)
+
+# ensure your columns are numeric (0/1)
+df_bin <- match.dois %>% 
+  transmute(
+    Scopus   = as.integer(Scopus),
+    WoS      = as.integer(WoS),
+    OpenAlex = as.integer(OpenAlex)
+  )
+
+upset(
+  df_bin,
+  intersect     = c("Scopus", "WoS", "OpenAlex"),
+  base_annotations = list(
+    'Number of records' = intersection_size(counts=TRUE)
+  ), #Name = 'Presence in database',
+  sort_intersections_by = "degree"
+)
+
+## The columns topic.name, subfield.name, field.name and domain.name are a hierarchical classification of the 15,000 papers that are in the paper.details dataframe. So now we will share that hierarchy to visualise
+
+
+```
+
+
+```{r Split of research domains, echo = F}
+
+# 1. Domain‐level counts
+domain_counts <- paper.details %>%
+  count(domain.name) %>%
+  arrange(desc(n))
+
+# 2. Domain → Field
+domain_field_counts <- paper.details %>%
+  count(domain.name, field.name) %>%
+  arrange(domain.name, desc(n))
+
+# 3. Domain → Field → Subfield
+domain_field_subfield_counts <- paper.details %>%
+  count(domain.name, field.name, subfield.name) %>%
+  arrange(domain.name, field.name, desc(n))
+
+# 4. Full hierarchy down to Topic
+full_breakdown <- paper.details %>%
+  count(domain.name, field.name, subfield.name, topic.name) %>%
+  arrange(domain.name, field.name, subfield.name, desc(n))
+
+# write_sheet(domain_field_counts, ss = '1WRlXkr4LzLiv6pka8cnPz0tlmid8dbsR9VUo_u-Lh-w',
+#             sheet = 'OpenAlex_Domains')
+# 
+# write_sheet(full_breakdown, ss = '1WRlXkr4LzLiv6pka8cnPz0tlmid8dbsR9VUo_u-Lh-w',
+#             sheet = 'OpenAlex_Full')
+
+# Inspect
+# print(domain_counts)
+# print(domain_field_counts)
+# … or View(full_breakdown) in RStudio for the full table
+
+```
+
+```{r}
+
+# install.packages(c("ggplot2", "dplyr"))  # if needed
+library(dplyr)
+library(ggplot2)
+
+# Filter to your year window and summarise
+year_domain <- paper.details %>%
+  filter(publication_year >= 2000, publication_year <= 2024) %>%
+  count(publication_year, domain.name) %>%
+  ungroup()
+
+year_field <- paper.details %>%
+  filter(publication_year >= 2000, publication_year <= 2024) %>%
+  count(publication_year, field.name) %>%
+  ungroup()
+
+
+# A. Line plot by Domain
+ggplot(year_domain, aes(x = publication_year, y = n, color = domain.name)) +
+  geom_line(size = 1) +
+  scale_x_continuous(breaks = seq(2000, 2024, by = 2)) +
+  labs(
+    title = "Publications Over Time by Domain",
+    x     = "Year",
+    y     = "Number of Publications",
+    color = "Domain"
+  ) +
+  theme_minimal()
+ggsave('domains over years.jpg')
+
+
+# B. Line plot by Field
+# ggplot(year_field, aes(x = publication_year, y = n, color = field.name)) +
+#   geom_line(size = 1) +
+#   scale_x_continuous(breaks = seq(2000, 2024, by = 2)) +
+#   labs(
+#     title = "Publications Over Time by Field",
+#     x     = "Year",
+#     y     = "Number of Publications",
+#     color = "Field"
+#   ) +
+#   theme_minimal()
+
+# Load required libraries
+# install.packages(c("dplyr", "ggplot2"))  # uncomment if needed
+
+# 1. Summarise number of publications per year, per domain and field
+year_df <- paper.details %>%
+  filter(publication_year >= 2000, publication_year <= 2024) %>%
+  count(domain.name, field.name, publication_year) %>%
+  ungroup()
+
+# 2. Create an output directory for the plots (optional)
+if (!dir.exists("plots")) {
+  dir.create("plots")
+}
+
+# 3. Loop over each domain, make a line‐plot of fields vs. year, and save as PNG
+domains <- unique(year_df$domain.name)
+
+for (dom in domains) {
+  # Subset data for this domain
+  df_dom <- filter(year_df, domain.name == dom)
+  
+  # Build the plot
+  p <- ggplot(df_dom, aes(x = publication_year, y = n, color = field.name)) +
+    geom_line(size = 1) +
+    scale_x_continuous(breaks = seq(2000, 2024, by = 2)) +
+    labs(
+      title = paste("Publications by Field in", dom),
+      x     = "Year",
+      y     = "Number of Publications",
+      color = "Field"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+  
+  # Sanitize domain name for filename (replace non-alphanumeric with underscores)
+  safe_name <- gsub("[^A-Za-z0-9]", "_", dom)
+  filename  <- file.path("plots", paste0(safe_name, ".jpg"))
+  
+  # Save plot to PNG
+  ggsave(
+    filename = filename,
+    plot     = p,
+    width    = 8,    # inches
+    height   = 6,    # inches
+    dpi      = 300
+  )
+  
+  message("Saved plot for domain '", dom, "' to ", filename)
+}
+
+
+
+```
+

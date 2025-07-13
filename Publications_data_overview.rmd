@@ -1,0 +1,474 @@
+---
+title: "Summary of Publications Dataset"
+author: "Siddharth Bharath, Pranshu Jaiswal, Lena Robra, Manfred Max Bergman"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+  pdf_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(DT)
+library(scales)
+library(kableExtra)
+library(tidyr)
+library(lubridate)
+library(stringr)
+library(arrow)
+
+paper.details.oa.final <- read_parquet("Data/publications_compiled_2000-2024.parquet")
+```
+
+# Executive Summary
+
+This report provides a comprehensive overview of our enhanced research publication dataset, combining data from **OpenAlex**, **Web of Science**, and **Scopus**. The dataset has been comprehensively enhanced with abstracts, citation counts, funding information, and keyword data from multiple sources.
+
+```{r overview-stats}
+# Generate key statistics
+total_papers <- nrow(paper.details.oa.final)
+date_range <- range(paper.details.oa.final$publication_date, na.rm = TRUE)
+year_range <- range(paper.details.oa.final$publication_year, na.rm = TRUE)
+
+# Data completeness
+papers_with_abstracts <- sum(!is.na(paper.details.oa.final$abstract) & paper.details.oa.final$abstract != "")
+papers_with_citations <- sum(!is.na(paper.details.oa.final$cited_by_count) & paper.details.oa.final$cited_by_count > 0)
+papers_with_topics <- sum(!is.na(paper.details.oa.final$primary_topic_name))
+papers_with_funding <- sum(!is.na(paper.details.oa.final$funding_details) & paper.details.oa.final$funding_details != "")
+papers_openaccess <- sum(paper.details.oa.final$is_oa, na.rm = TRUE)
+
+# Create summary table
+overview_stats <- data.frame(
+  Metric = c("Total Publications", "Date Range", "Papers with Abstracts", 
+             "Papers with Citations", "Papers with OpenAlex Topics", 
+             "Papers with Funding Info", "Open Access Papers"),
+  Value = c(
+    comma(total_papers),
+    paste(format(date_range[1], "%Y"), "-", format(date_range[2], "%Y")),
+    paste0(comma(papers_with_abstracts), " (", round(100*papers_with_abstracts/total_papers, 1), "%)"),
+    paste0(comma(papers_with_citations), " (", round(100*papers_with_citations/total_papers, 1), "%)"),
+    paste0(comma(papers_with_topics), " (", round(100*papers_with_topics/total_papers, 1), "%)"),
+    paste0(comma(papers_with_funding), " (", round(100*papers_with_funding/total_papers, 1), "%)"),
+    paste0(comma(papers_openaccess), " (", round(100*papers_openaccess/total_papers, 1), "%)")
+  )
+)
+
+kable(overview_stats, caption = "Dataset Overview") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Data Sources and Coverage
+
+## Database Coverage Analysis
+
+```{r coverage-analysis, fig.height=8}
+# Recreate coverage analysis for the final dataset
+# Note: This assumes you have the original coverage data
+# You may need to adapt this based on your actual data structure
+
+# Create a simple coverage summary
+source_summary <- data.frame(
+  Source = c("OpenAlex", "Web of Science + Scopus", "Combined Enhanced"),
+  Papers = c(24907, 69, total_papers),
+  Coverage = c("Primary source", "Additional papers", "Final dataset")
+)
+
+# Visualize data sources
+p1 <- ggplot(source_summary, aes(x = Source, y = Papers, fill = Source)) +
+  geom_col(alpha = 0.8, width = 0.6) +
+  geom_text(aes(label = comma(Papers)), vjust = -0.5, fontface = "bold") +
+  scale_fill_brewer(type = "qual", palette = "Set2") +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Data Source Contribution",
+       subtitle = "Number of papers from each source",
+       x = "Data Source", y = "Number of Papers") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 14, face = "bold"))
+
+print(p1)
+```
+
+---
+
+# Temporal Distribution
+
+## Publication Timeline
+
+```{r temporal-analysis}
+# Annual publication trends
+annual_pubs <- paper.details.oa.final %>%
+  filter(!is.na(publication_year) & publication_year >= 1990) %>%
+  count(publication_year) %>%
+  arrange(publication_year)
+
+# Plot publication timeline
+p2 <- ggplot(annual_pubs, aes(x = publication_year, y = n)) +
+  geom_line(color = "#2E8B57", size = 1.2) +
+  geom_point(color = "#2E8B57", size = 2) +
+  scale_x_continuous(breaks = seq(1990, 2025, 5)) +
+  scale_y_continuous(labels = comma_format()) +
+  labs(title = "Publication Timeline",
+       subtitle = paste("Publications per year (", min(annual_pubs$publication_year), "-", max(annual_pubs$publication_year), ")"),
+       x = "Publication Year", y = "Number of Publications") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p2)
+
+# Key temporal statistics
+peak_year <- annual_pubs$publication_year[which.max(annual_pubs$n)]
+peak_count <- max(annual_pubs$n)
+recent_5_years <- sum(annual_pubs$n[annual_pubs$publication_year >= (max(annual_pubs$publication_year) - 4)])
+
+cat("**Temporal Insights:**\n")
+cat("- Peak publication year:", peak_year, "with", comma(peak_count), "papers\n")
+cat("- Publications in last 5 years:", comma(recent_5_years), "\n")
+cat("- Average publications per year:", round(mean(annual_pubs$n), 1), "\n")
+```
+
+---
+
+# Research Topics and Domains
+
+## Topic Distribution
+
+```{r topic-analysis, fig.height=10}
+# Top research domains
+domain_analysis <- paper.details.oa.final %>%
+  filter(!is.na(primary_domain_name)) %>%
+  count(primary_domain_name, sort = TRUE) %>%
+  mutate(percentage = round(100 * n / sum(n), 1))
+
+# Top research fields
+field_analysis <- paper.details.oa.final %>%
+  filter(!is.na(primary_field_name)) %>%
+  count(primary_field_name, sort = TRUE) %>%
+  head(15) %>%
+  mutate(percentage = round(100 * n / sum(n), 1))
+
+# Top research topics
+topic_analysis <- paper.details.oa.final %>%
+  filter(!is.na(primary_topic_name)) %>%
+  count(primary_topic_name, sort = TRUE) %>%
+  head(20) %>%
+  mutate(
+    percentage = round(100 * n / sum(n), 1),
+    primary_topic_name = str_wrap(primary_topic_name, 40)
+  )
+
+# Plot domains
+p3 <- ggplot(domain_analysis, aes(x = reorder(primary_domain_name, n), y = n, fill = primary_domain_name)) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = paste0(comma(n), "\n(", percentage, "%)")), hjust = -0.1, size = 3.5) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.15))) +
+  coord_flip() +
+  labs(title = "Research Domains Distribution",
+       x = "Domain", y = "Number of Papers") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Plot top fields
+p4 <- ggplot(field_analysis, aes(x = reorder(primary_field_name, n), y = n, fill = primary_field_name)) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = paste0(comma(n), "\n(", percentage, "%)")), hjust = -0.1, size = 3) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.15))) +
+  coord_flip() +
+  labs(title = "Top 15 Research Fields",
+       x = "Field", y = "Number of Papers") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 10))
+
+# Plot top topics
+p5 <- ggplot(topic_analysis, aes(x = reorder(primary_topic_name, n), y = n, fill = primary_topic_name)) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = comma(n)), hjust = -0.1, size = 3) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.1))) +
+  coord_flip() +
+  labs(title = "Top 20 Research Topics",
+       x = "Topic", y = "Number of Papers") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 9))
+
+print(p3)
+print(p4)
+print(p5)
+```
+
+## Topic Summary Tables
+
+```{r topic-tables}
+# Domain summary
+kable(domain_analysis, 
+      col.names = c("Research Domain", "Papers", "Percentage"),
+      caption = "Research Domain Distribution") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# Field summary (top 10)
+kable(head(field_analysis, 10), 
+      col.names = c("Research Field", "Papers", "Percentage"),
+      caption = "Top 10 Research Fields") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Citation Impact Analysis
+
+## Citation Distribution
+
+```{r citation-analysis}
+# Citation statistics
+citation_stats <- paper.details.oa.final %>%
+  filter(!is.na(cited_by_count)) %>%
+  summarise(
+    total_papers = n(),
+    total_citations = sum(cited_by_count),
+    mean_citations = round(mean(cited_by_count), 1),
+    median_citations = median(cited_by_count),
+    max_citations = max(cited_by_count),
+    highly_cited = sum(cited_by_count >= 100),
+    uncited = sum(cited_by_count == 0)
+  )
+
+# Citation distribution plot
+citation_dist <- paper.details.oa.final %>%
+  filter(!is.na(cited_by_count) & cited_by_count <= 1000) %>%
+  ggplot(aes(x = cited_by_count)) +
+  geom_histogram(bins = 50, fill = "#3498db", alpha = 0.7) +
+  scale_x_continuous(labels = comma_format()) +
+  scale_y_continuous(labels = comma_format()) +
+  labs(title = "Citation Distribution",
+       subtitle = "Papers with ≤1000 citations (for visualization clarity)",
+       x = "Citations", y = "Number of Papers") +
+  theme_minimal()
+
+print(citation_dist)
+
+# Most cited papers
+most_cited <- paper.details.oa.final %>%
+  filter(!is.na(cited_by_count)) %>%
+  arrange(desc(cited_by_count)) %>%
+  head(10) %>%
+  select(title, cited_by_count, publication_year, primary_topic_name) %>%
+  mutate(
+    title = str_trunc(title, 60),
+    primary_topic_name = str_trunc(primary_topic_name, 30)
+  )
+
+# Citation statistics table
+citation_summary <- data.frame(
+  Metric = c("Total Citations", "Mean Citations", "Median Citations", 
+             "Max Citations", "Highly Cited (≥100)", "Uncited Papers"),
+  Value = c(
+    comma(citation_stats$total_citations),
+    citation_stats$mean_citations,
+    citation_stats$median_citations,
+    comma(citation_stats$max_citations),
+    paste0(comma(citation_stats$highly_cited), " (", round(100*citation_stats$highly_cited/citation_stats$total_papers, 1), "%)"),
+    paste0(comma(citation_stats$uncited), " (", round(100*citation_stats$uncited/citation_stats$total_papers, 1), "%)")
+  )
+)
+
+kable(citation_summary, caption = "Citation Impact Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+kable(most_cited, 
+      col.names = c("Title", "Citations", "Year", "Primary Topic"),
+      caption = "Top 10 Most Cited Papers") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Data Quality and Completeness
+
+## Completeness Analysis
+
+```{r completeness-analysis}
+# Data completeness assessment
+completeness <- paper.details.oa.final %>%
+  summarise(
+    abstracts = round(100 * sum(!is.na(abstract) & abstract != "") / n(), 1),
+    citations = round(100 * sum(!is.na(cited_by_count)) / n(), 1),
+    topics = round(100 * sum(!is.na(primary_topic_name)) / n(), 1),
+    funding = round(100 * sum(!is.na(funding_details) & funding_details != "") / n(), 1),
+    keywords_author = round(100 * sum(!is.na(author_keywords) & author_keywords != "") / n(), 1),
+    keywords_scopus = round(100 * sum(!is.na(index_keywords_scopus) & index_keywords_scopus != "") / n(), 1),
+    keywords_wos = round(100 * sum(!is.na(keywords_plus_wos) & keywords_plus_wos != "") / n(), 1),
+    dois = round(100 * sum(!is.na(doi) & doi != "") / n(), 1),
+    open_access = round(100 * sum(!is.na(is_oa)) / n(), 1)
+  ) %>%
+  pivot_longer(everything(), names_to = "Field", values_to = "Completeness") %>%
+  mutate(
+    Field = case_when(
+      Field == "abstracts" ~ "Abstracts",
+      Field == "citations" ~ "Citations",
+      Field == "topics" ~ "OpenAlex Topics",
+      Field == "funding" ~ "Funding Details",
+      Field == "keywords_author" ~ "Author Keywords",
+      Field == "keywords_scopus" ~ "Scopus Keywords",
+      Field == "keywords_wos" ~ "WoS Keywords",
+      Field == "dois" ~ "DOIs",
+      Field == "open_access" ~ "Open Access Status"
+    )
+  ) %>%
+  arrange(desc(Completeness))
+
+# Plot completeness
+completeness_plot <- ggplot(completeness, aes(x = reorder(Field, Completeness), y = Completeness, fill = Field)) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = paste0(Completeness, "%")), hjust = -0.1, fontface = "bold") +
+  scale_y_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0))) +
+  coord_flip() +
+  labs(title = "Data Completeness by Field",
+       subtitle = "Percentage of papers with non-missing data",
+       x = "Data Field", y = "Completeness (%)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+print(completeness_plot)
+
+kable(completeness, 
+      col.names = c("Data Field", "Completeness (%)"),
+      caption = "Data Completeness Summary") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Enhanced Data Features
+
+## Funding Information Analysis
+
+```{r funding-analysis}
+# Funding information statistics
+funding_stats <- paper.details.oa.final %>%
+  summarise(
+    papers_with_funding = sum(!is.na(funding_details) & funding_details != ""),
+    papers_with_funding_text = sum(!is.na(funding_text) & funding_text != ""),
+    original_grants = sum(!is.na(grants) & grants != ""),
+    total_papers = n()
+  ) %>%
+  mutate(
+    funding_improvement = papers_with_funding - original_grants,
+    funding_coverage = round(100 * papers_with_funding / total_papers, 1)
+  )
+
+funding_summary <- data.frame(
+  Metric = c("Original OpenAlex Grants", "Enhanced Funding Details", "Enhanced Funding Text", 
+             "Funding Coverage", "Improvement"),
+  Value = c(
+    comma(funding_stats$original_grants),
+    comma(funding_stats$papers_with_funding),
+    comma(funding_stats$papers_with_funding_text),
+    paste0(funding_stats$funding_coverage, "%"),
+    paste0("+", comma(funding_stats$funding_improvement), " papers")
+  )
+)
+
+kable(funding_summary, caption = "Funding Information Enhancement") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## Keywords Enhancement
+
+```{r keywords-analysis}
+# Keywords statistics
+keywords_stats <- paper.details.oa.final %>%
+  summarise(
+    author_kw = sum(!is.na(author_keywords) & author_keywords != ""),
+    scopus_kw = sum(!is.na(index_keywords_scopus) & index_keywords_scopus != ""),
+    wos_kw = sum(!is.na(keywords_plus_wos) & keywords_plus_wos != ""),
+    original_kw = sum(!is.na(keywords) & keywords != ""),
+    total_papers = n()
+  )
+
+keywords_summary <- data.frame(
+  Keyword_Type = c("Original OpenAlex Keywords", "Author Keywords", "Scopus Index Keywords", "WoS Keywords Plus"),
+  Papers = c(keywords_stats$original_kw, keywords_stats$author_kw, 
+             keywords_stats$scopus_kw, keywords_stats$wos_kw),
+  Coverage = c(
+    round(100 * keywords_stats$original_kw / keywords_stats$total_papers, 1),
+    round(100 * keywords_stats$author_kw / keywords_stats$total_papers, 1),
+    round(100 * keywords_stats$scopus_kw / keywords_stats$total_papers, 1),
+    round(100 * keywords_stats$wos_kw / keywords_stats$total_papers, 1)
+  )
+) %>%
+  mutate(Coverage = paste0(Coverage, "%"))
+
+kable(keywords_summary, 
+      col.names = c("Keyword Type", "Papers", "Coverage"),
+      caption = "Keywords Coverage by Source") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Document Types and Open Access
+
+## Document Type Distribution
+
+```{r document-types}
+# Document types
+doc_types <- paper.details.oa.final %>%
+  count(`document type`, sort = TRUE) %>%
+  mutate(percentage = round(100 * n / sum(n), 1)) %>%
+  filter(!is.na(`document type`))
+
+doc_plot <- ggplot(doc_types, aes(x = reorder(`document type`, n), y = n, fill = `document type`)) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = paste0(comma(n), "\n(", percentage, "%)")), hjust = -0.1, size = 3.5) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.15))) +
+  coord_flip() +
+  labs(title = "Document Type Distribution",
+       x = "Document Type", y = "Number of Papers") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+print(doc_plot)
+
+# Open Access analysis
+oa_analysis <- paper.details.oa.final %>%
+  filter(!is.na(is_oa)) %>%
+  count(is_oa) %>%
+  mutate(
+    status = ifelse(is_oa, "Open Access", "Not Open Access"),
+    percentage = round(100 * n / sum(n), 1)
+  )
+
+kable(oa_analysis %>% select(status, n, percentage), 
+      col.names = c("Access Type", "Papers", "Percentage"),
+      caption = "Open Access Distribution") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Key Insights for Future Analysis
+
+## Dataset Strengths
+
+- **Comprehensive Coverage**: `r comma(total_papers)` publications from multiple authoritative sources
+- **High Citation Data**: `r round(100*papers_with_citations/total_papers, 1)`% of papers have citation information
+- **Rich Topic Classification**: `r round(100*papers_with_topics/total_papers, 1)`% have OpenAlex topic assignments
+- **Enhanced Abstracts**: `r round(100*papers_with_abstracts/total_papers, 1)`% coverage after enhancement
+- **Multiple Keyword Sources**: Three different keyword classification systems available
+
+## Analytical Opportunities
+
+1. **Temporal Analysis**: Publications span `r year_range[2] - year_range[1]` years with clear growth patterns
+2. **Domain Comparison**: Well-distributed across `r nrow(domain_analysis)` major
