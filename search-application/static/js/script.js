@@ -1,14 +1,5 @@
 // --- Index Page Script ---
 document.addEventListener('DOMContentLoaded', function () {
-    // Filter toggle for advanced filters
-    const filterToggle = document.getElementById('filterToggle');
-    const advancedFilters = document.getElementById('advancedFilters');
-    if (filterToggle && advancedFilters) {
-        filterToggle.addEventListener('click', function () {
-            advancedFilters.classList.toggle('show');
-        });
-    }
-
     // Main search bar enhancements
     const mainSearch = document.getElementById('mainSearch');
     const form = document.querySelector('form');
