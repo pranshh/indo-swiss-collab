@@ -33,11 +33,6 @@
                             placeholder="Search the database"
                             id="mainSearch"
                         >
-                        <button type="button" class="filter-toggle" id="filterToggle">
-                            <svg class="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"/>
-                            </svg>
-                        </button>
                         <button type="submit" class="search-button">
                             <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/>
@@ -47,7 +42,7 @@
                 </div>
 
                 <!-- Advanced Filters -->
-                <div class="advanced-filters" id="advancedFilters">
+                <div class="advanced-filters show" id="advancedFilters">
                     <div class="filter-grid">
                         <div class="filter-group">
                             <input type="text" class="filter-input" name="title" placeholder="Article Title">
@@ -95,14 +90,7 @@
         <div class="disclaimer-card">
             <h2 class="disclaimer-title">Disclaimer</h2>
             <p class="disclaimer-text">
-                This is a beta version of a search interface for joint publications from authors affiliated with Switzerland and India in the citation and abstract databases Web of Science and Scopus, published between 2000 and 2024. Data cleaning is ongoing. Output from this tool should only be considered indicative.
-            </p>
-            <p class="disclaimer-text">
-                For questions or comments, please contact 
-                <a href="mailto:siddharth.bharath@protonmail.com" class="disclaimer-email">siddharth.bharath@protonmail.com</a> 
-                or 
-                <a href="mailto:max.bergman@unibas.ch" class="disclaimer-email">max.bergman@unibas.ch</a>.
-            </p>
+                This is a beta version of a search interface for joint publications from authors affiliated with Switzerland and India. Publications are extracted from the citation and abstract databases OpenAlex, Web of Science and Scopus, published between 2000 and 2024. Data cleaning is ongoing. Output from this tool should only be considered indicative.            </p>
         </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
