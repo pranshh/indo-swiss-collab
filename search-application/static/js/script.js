@@ -1,115 +1,378 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // ----- Form Button Behavior & Input Effects (Index Page) -----
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => {
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            const inputs = form.querySelectorAll('input');
-            inputs.forEach(input => {
-                input.addEventListener('focus', function() {
-                    const floating = this.closest('.form-floating');
-                    if (floating) {
-                        floating.classList.add('scale-105');
-                    }
-                });
-                input.addEventListener('blur', function() {
-                    const floating = this.closest('.form-floating');
-                    if (floating) {
-                        floating.classList.remove('scale-105');
-                    }
-                });
-            });
-            form.addEventListener('submit', function() {
-                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Searching...';
-                submitBtn.disabled = true;
-            });
-        }
-    });
-
-    // Reset submit buttons if coming from a New Search (via sessionStorage)
-    if (sessionStorage.getItem('resetSearch')) {
-        const submitButtons = document.querySelectorAll('button[type="submit"]');
-        submitButtons.forEach(btn => {
-            btn.innerHTML = btn.dataset.origText || btn.innerHTML;
-            btn.disabled = false;
+// --- Index Page Script ---
+document.addEventListener('DOMContentLoaded', function () {
+    // Filter toggle for advanced filters
+    const filterToggle = document.getElementById('filterToggle');
+    const advancedFilters = document.getElementById('advancedFilters');
+    if (filterToggle && advancedFilters) {
+        filterToggle.addEventListener('click', function () {
+            advancedFilters.classList.toggle('show');
         });
-        sessionStorage.removeItem('resetSearch');
     }
 
-    // ----- Bootstrap Tooltip Initialization (Results Page) -----
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function(tooltipTriggerEl) {
-        new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // ----- Table Filter Functionality (Results Page) -----
-    const searchInput = document.getElementById('tableSearch');
-    if (searchInput) {
-        const tableRows = Array.from(document.querySelectorAll('tbody tr'));
-        const resultCount = document.getElementById('resultCount');
-        const grandTotal = resultCount ? parseInt(resultCount.dataset.total, 10) : tableRows.length;
-        function updateResultCount() {
-            const visibleRows = tableRows.filter(row => row.style.display !== 'none').length;
-            if (resultCount) {
-                resultCount.textContent = `Showing ${visibleRows} results out of ${grandTotal}`;
+    // Main search bar enhancements
+    const mainSearch = document.getElementById('mainSearch');
+    const form = document.querySelector('form');
+    if (mainSearch && form) {
+        mainSearch.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                form.submit();
             }
-        }
-        searchInput.addEventListener('input', function() {
-            const searchTerm = searchInput.value.toLowerCase();
-            tableRows.forEach(row => {
-                let match = false;
-                row.querySelectorAll('td').forEach(cell => {
-                    const visibleText = cell.textContent.toLowerCase();
-                    const fullText = (cell.dataset.fulltext || '').toLowerCase();
-                    if (visibleText.includes(searchTerm) || fullText.includes(searchTerm)) {
-                        match = true;
-                    }
-                });
-                row.style.display = match ? '' : 'none';
-            });
-            updateResultCount();
         });
-        updateResultCount();
+        mainSearch.addEventListener('focus', function () {
+            this.parentElement.style.boxShadow = '0 12px 35px rgba(180, 82, 82, 0.2)';
+        });
+        mainSearch.addEventListener('blur', function () {
+            this.parentElement.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)';
+        });
     }
 
-    // ----- Modal Functionality for Expandable Cells (Results Page) -----
-    const detailModal = document.getElementById('detailModal');
-    if (detailModal) {
-        const modalBody = detailModal.querySelector('.modal-body');
-        document.querySelectorAll('.expandable').forEach(cell => {
-            cell.addEventListener('click', function() {
-                const content = this.getAttribute('data-content');
-                if (modalBody && content) {
-                    modalBody.innerHTML = `<p class="lead" style="white-space: pre-line;">${content}</p>`;
-                    var modal = new bootstrap.Modal(detailModal);
-                    modal.show();
+    // --- About Page Enhancements ---
+    // Animate content on scroll
+    const animatedElements = document.querySelectorAll('.content-container > *');
+    if (animatedElements.length) {
+        const observer = new IntersectionObserver(function (entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
                 }
             });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        animatedElements.forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+    }
+
+    // Home button hover effect
+    const homeButton = document.querySelector('.home-button');
+    if (homeButton) {
+        homeButton.addEventListener('mouseenter', function () {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0px 8px 25px rgba(0, 0, 0, 0.3)';
+        });
+        homeButton.addEventListener('mouseleave', function () {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '0px 0px 10px rgba(0, 0, 0, 0.25)';
+        });
+    }
+
+    // Parallax effect for backdrop
+    const backdrop = document.querySelector('.backdrop');
+    if (backdrop) {
+        let ticking = false;
+        function updateParallax() {
+            const scrolled = window.pageYOffset;
+            const rate = scrolled * -0.2;
+            backdrop.style.transform = `translateY(${rate}px)`;
+            ticking = false;
+        }
+        function requestTick() {
+            if (!ticking) {
+                requestAnimationFrame(updateParallax);
+                ticking = true;
+            }
+        }
+        window.addEventListener('scroll', requestTick);
+    }
+
+    // Scroll-to-top button
+    if (!document.querySelector('.scroll-to-top')) {
+        let scrollToTopBtn = document.createElement('button');
+        scrollToTopBtn.innerHTML = '↑';
+        scrollToTopBtn.className = 'scroll-to-top';
+        scrollToTopBtn.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #b45252;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        `;
+        document.body.appendChild(scrollToTopBtn);
+
+        window.addEventListener('scroll', function () {
+            if (window.pageYOffset > 300) {
+                scrollToTopBtn.style.opacity = '1';
+                scrollToTopBtn.style.pointerEvents = 'auto';
+            } else {
+                scrollToTopBtn.style.opacity = '0';
+                scrollToTopBtn.style.pointerEvents = 'none';
+            }
+        });
+        scrollToTopBtn.addEventListener('click', function () {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        scrollToTopBtn.addEventListener('mouseenter', function () {
+            this.style.background = '#9d2828';
+            this.style.transform = 'scale(1.1)';
+        });
+        scrollToTopBtn.addEventListener('mouseleave', function () {
+            this.style.background = '#b45252';
+            this.style.transform = 'scale(1)';
         });
     }
 });
 
-// ----- Reset Submit Buttons on Pageshow (Browser Back Button) -----
-window.addEventListener('pageshow', function() {
-    const submitButtons = document.querySelectorAll('button[type="submit"]');
-    submitButtons.forEach(btn => {
-        btn.innerHTML = btn.dataset.origText || btn.innerHTML;
-        btn.disabled = false;
+// --- Results Page Script ---
+document.addEventListener('DOMContentLoaded', function () {
+    // Table filter
+    const filterInput = document.getElementById('tableSearch');
+    if (filterInput) {
+        filterInput.addEventListener('input', function () {
+            const filterValue = this.value.toLowerCase();
+            const rows = document.querySelectorAll('.table-row');
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('.table-cell');
+                let rowVisible = false;
+                cells.forEach(cell => {
+                    const cellText = cell.textContent || cell.innerText;
+                    if (cellText.toLowerCase().includes(filterValue)) {
+                        rowVisible = true;
+                    }
+                });
+                if (rowVisible) {
+                    row.style.display = '';
+                    visibleCount++;
+                    row.style.animation = 'none';
+                    row.offsetHeight;
+                    row.style.animation = 'slideInLeft 0.3s ease-out';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            updateResultCount(visibleCount);
+        });
+    }
+
+    function updateResultCount(count) {
+        const countBadge = document.querySelector('.count-badge');
+        if (countBadge) {
+            const totalResults = document.querySelectorAll('.table-row').length;
+            countBadge.textContent = count === totalResults
+                ? `${totalResults} publications found`
+                : `${count} of ${totalResults} publications shown`;
+        }
+    }
+
+    // Expand/collapse long text in table
+    window.toggleText = function (button) {
+        const textContent = button.parentElement;
+        const cell = textContent.parentElement;
+        const fullText = cell.getAttribute('data-fulltext');
+        const textPreview = textContent.querySelector('.text-preview');
+        const expandIcon = button.querySelector('.expand-icon');
+        if (cell.getAttribute('data-expanded') === 'true') {
+            textPreview.textContent = fullText.substring(0, 100) + '...';
+            cell.setAttribute('data-expanded', 'false');
+            expandIcon.style.transform = 'rotate(0deg)';
+            button.title = 'Show full text';
+        } else {
+            textPreview.textContent = fullText;
+            cell.setAttribute('data-expanded', 'true');
+            expandIcon.style.transform = 'rotate(180deg)';
+            button.title = 'Show less';
+        }
+    };
+
+    // Table row hover effect
+    const tableRows = document.querySelectorAll('.table-row');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function () {
+            this.style.background = 'rgba(211, 174, 170, 0.15)';
+            this.style.boxShadow = '0 4px 20px rgba(180, 82, 82, 0.1)';
+        });
+        row.addEventListener('mouseleave', function () {
+            this.style.background = '';
+            this.style.boxShadow = '';
+        });
+    });
+
+    // Scroll-to-top button for results page (if not already present)
+    if (!document.querySelector('.scroll-to-top')) {
+        let scrollToTopBtn = document.createElement('button');
+        scrollToTopBtn.innerHTML = '↑';
+        scrollToTopBtn.className = 'scroll-to-top';
+        scrollToTopBtn.style.cssText = `
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #b45252;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(180, 82, 82, 0.3);
+        `;
+        document.body.appendChild(scrollToTopBtn);
+
+        window.addEventListener('scroll', function () {
+            if (window.pageYOffset > 300) {
+                scrollToTopBtn.style.opacity = '1';
+                scrollToTopBtn.style.pointerEvents = 'auto';
+            } else {
+                scrollToTopBtn.style.opacity = '0';
+                scrollToTopBtn.style.pointerEvents = 'none';
+            }
+        });
+        scrollToTopBtn.addEventListener('click', function () {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        scrollToTopBtn.addEventListener('mouseenter', function () {
+            this.style.background = '#9d2828';
+            this.style.transform = 'scale(1.1)';
+        });
+        scrollToTopBtn.addEventListener('mouseleave', function () {
+            this.style.background = '#b45252';
+            this.style.transform = 'scale(1)';
+        });
+    }
+
+    // Download button loading state
+    const downloadBtn = document.querySelector('.download-btn');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function () {
+            const originalText = this.innerHTML;
+            this.innerHTML = `
+                <svg class="download-icon animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Downloading...
+            `;
+            this.disabled = true;
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.disabled = false;
+            }, 3000);
+        });
+    }
+
+    // Add CSS for spinning animation
+    if (!document.getElementById('spin-style')) {
+        const style = document.createElement('style');
+        style.id = 'spin-style';
+        style.textContent = `
+            .animate-spin {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                from { transform: rotate(0deg);}
+                to { transform: rotate(360deg);}
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Responsive table scroll indicator
+    function handleTableResponsive() {
+        const table = document.querySelector('.results-table');
+        const wrapper = document.querySelector('.table-wrapper');
+        if (table && wrapper) {
+            if (window.innerWidth < 768) {
+                if (!document.querySelector('.scroll-indicator')) {
+                    const scrollIndicator = document.createElement('div');
+                    scrollIndicator.className = 'scroll-indicator';
+                    scrollIndicator.innerHTML = '← Scroll horizontally to view all columns →';
+                    scrollIndicator.style.cssText = `
+                        text-align: center;
+                        padding: 10px;
+                        background: #fff3cd;
+                        color: #856404;
+                        font-size: 12px;
+                        border-top: 1px solid #ffeaa7;
+                    `;
+                    wrapper.parentNode.insertBefore(scrollIndicator, wrapper.nextSibling);
+                }
+            } else {
+                const indicator = document.querySelector('.scroll-indicator');
+                if (indicator) indicator.remove();
+            }
+        }
+    }
+    handleTableResponsive();
+    window.addEventListener('resize', handleTableResponsive);
+
+    // Highlight search terms in table
+    function highlightSearchTerms() {
+        const form = document.getElementById('searchForm');
+        const searchTerms = [];
+        if (form) {
+            const formData = new FormData(form);
+            for (let [key, value] of formData.entries()) {
+                if (value && value.trim() && key !== 'page') {
+                    searchTerms.push(value.trim().toLowerCase());
+                }
+            }
+        }
+        if (searchTerms.length > 0) {
+            const cells = document.querySelectorAll('.table-cell');
+            cells.forEach(cell => {
+                let originalText = cell.textContent;
+                let highlightedText = originalText;
+                searchTerms.forEach(term => {
+                    const regex = new RegExp(`(${term})`, 'gi');
+                    highlightedText = highlightedText.replace(regex, '<mark style="background: #fff3cd; padding: 1px 3px; border-radius: 3px;">$1</mark>');
+                });
+                if (highlightedText !== originalText) {
+                    cell.innerHTML = highlightedText;
+                }
+            });
+        }
+    }
+    highlightSearchTerms();
+
+    // Lazy load row animations
+    const rowObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateX(0)';
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '50px 0px' });
+
+    const rows = document.querySelectorAll('.table-row');
+    rows.forEach((row, index) => {
+        if (index > 10) {
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(-20px)';
+            row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+            rowObserver.observe(row);
+        }
     });
 });
 
-// ----- Pagination Handler -----
-function changePage(page) {
+// --- Pagination Function (Global Scope) ---
+window.changePage = function (page) {
     const form = document.getElementById('searchForm');
-    if (form) {
-        let pageInput = form.querySelector('input[name="page"]');
-        if (!pageInput) {
-            pageInput = document.createElement('input');
-            pageInput.type = 'hidden';
-            pageInput.name = 'page';
-            form.appendChild(pageInput);
-        }
-        pageInput.value = page;
-        form.submit();
+    if (!form) return;
+    let pageInput = form.querySelector('input[name="page"]');
+    if (!pageInput) {
+        pageInput = document.createElement('input');
+        pageInput.type = 'hidden';
+        pageInput.name = 'page';
+        form.appendChild(pageInput);
     }
-}
+    pageInput.value = page;
+    form.submit();
+};
