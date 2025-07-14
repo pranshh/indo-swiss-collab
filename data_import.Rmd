@@ -529,9 +529,69 @@ library(openalexR)
 # Helper function to remove the OpenAlex URL prefix from IDs
 
 clean_id <- function(id) {
-  str_remove_all(id, "(https://openalex.org/)|(https://ror.org/)|(https://doi.org/)|(https://orcid.org/)")
+  str_remove_all(id, "(https://openalex\\.org/)|(https://ror\\.org/)|(https://doi\\.org/)|(https://orcid\\.org/)")
 }
 
+<<<<<<< HEAD
+# Fast clean_id on JSON strings
+clean_affiliations_json_fast <- function(json_str) {
+  if (is.na(json_str)) return(NA_character_)
+  
+  # Use string replacement directly on JSON - much faster
+  json_str %>%
+    # Clean URLs in id, ror, lineage fields
+    str_replace_all('"id":"https://openalex\\.org/', '"inst_id":"') %>%
+    str_replace_all('"ror":"https://ror\\.org/', '"ror":"') %>%
+    str_replace_all('"lineage":"https://openalex\\.org/', '"lineage":"') %>%
+    # Remove any remaining id field and replace with inst_id if needed
+    str_replace_all('"id":', '"inst_id":')
+}
+
+clean_topics_json_fast <- function(json_str) {
+  if (is.na(json_str)) return(NA_character_)
+  
+  # Clean URLs in topics JSON
+  json_str %>%
+    str_replace_all('https://openalex\\.org/', '') %>%
+    str_replace_all('https://doi\\.org/', '')
+}
+
+
+get_openalex_data = function(start.date,end.date) {
+  query_params <- paste0("https://api.openalex.org/works?",
+                       "filter=",
+                       "authorships.institutions.country_code:in,",
+                  "authorships.institutions.country_code:ch,",
+                  "from_publication_date:",start.date,',',
+                  "to_publication_date:",end.date,
+                  "&select=id,title,display_name,authorships,doi,publication_date,publication_year,primary_location,sources,institution_assertions,countries_distinct_count,institutions_distinct_count,is_authors_truncated,primary_topic,cited_by_count,ids,type,topics,keywords,is_retracted,grants,abstract_inverted_index")
+
+
+print("Requesting URL from OpenAlex API...")
+response <- oa_request(query_url = URLencode(query_params), mailto = 'siddharth.bharath@protonmail.com')
+
+publications_df = oa2df(data = response, entity = 'works')
+
+printo('Downloaded ',nrow(publications_df),' works from openAlex in this period.')
+
+#Individually get the full authorships data for whichever have truncated records
+#Now, any publication with exactly 100 authors is one that has more authors. 
+# So we have to query the API to get the information of that single publication
+
+publications_df = mutate(publications_df, rownum = row_number(), id = clean_id(id), doi = clean_id(doi), source_id = clean_id(source_id), host_organization = clean_id(host_organization))
+
+auth100 = publications_df %>% filter(map_int(authorships, nrow) == 100) %>% pull(rownum)
+
+if(length(auth100) > 0) {
+  printo(length(auth100), ' of these publications have more than 100 authors. Getting their details separately from openAlex.')
+  for(i in auth100) {
+  query_params <- paste0("https://api.openalex.org/works/",clean_id(publications_df$id[i]),"&select=id,authorships")
+  response <- oa_request(query_url = query_params)
+  x = oa2df(data = response, entity = 'works')$authorships
+  publications_df$authorships[i] = x
+  rm(x,response)
+  if(i%%3 == 0) print(i)
+=======
 get_openalex_data = function(start.date = NULL, end.date = NULL, dois = NULL) {
   # Validate input parameters
   if (is.null(start.date) && is.null(end.date) && is.null(dois)) {
@@ -629,6 +689,7 @@ get_openalex_data = function(start.date = NULL, end.date = NULL, dois = NULL) {
     warning("No publications found")
     return(tibble())
   }
+>>>>>>> refs/remotes/origin/main
 }
 # Function to save publications data to parquet format
 save_publications_parquet <- function(publications_df, year_range_label) {
@@ -868,6 +929,24 @@ save_publications_parquet(big_works,
 # saveRDS(publications_df, 
 #         'Data/openAlex_df_2000-2024.rdata')
 
+#Now clean the data gotten from Pranshu
+
+paper.details.oa = read_parquet('Data/publication_combined_2000_2024.parquet')
+
+paper.details.oa = paper.details.oa %>% 
+  mutate(work_id = clean_id(work_id),doi = clean_id(doi),
+         source_id = clean_id(source_id), 
+         host_organization = clean_id(host_organization),
+         ids = clean_id(ids),
+         topics = clean_id(topics)
+         )
+
+write_parquet(paper.details.oa, 'Data/publication_combined_2000_2024.parquet')
+
+authorship.oa = read_parquet('Data/authorships_combined_2000_2024.parquet')
+
+str(authorship.oa)
+
 ```
 
 ```{r Organise and save openalex data}
@@ -969,31 +1048,6 @@ run_data_quality_checks <- function() {
   ))
 }
 
-# 2. FAST JSON STRING PROCESSING FUNCTIONS
-# These work directly on JSON strings - much faster than parsing and re-processing
-
-# Fast clean_id on JSON strings
-clean_affiliations_json_fast <- function(json_str) {
-  if (is.na(json_str)) return(NA_character_)
-  
-  # Use string replacement directly on JSON - much faster
-  json_str %>%
-    # Clean URLs in id, ror, lineage fields
-    str_replace_all('"id":"https://openalex\\.org/', '"inst_id":"') %>%
-    str_replace_all('"ror":"https://ror\\.org/', '"ror":"') %>%
-    str_replace_all('"lineage":"https://openalex\\.org/', '"lineage":"') %>%
-    # Remove any remaining id field and replace with inst_id if needed
-    str_replace_all('"id":', '"inst_id":')
-}
-
-clean_topics_json_fast <- function(json_str) {
-  if (is.na(json_str)) return(NA_character_)
-  
-  # Clean URLs in topics JSON
-  json_str %>%
-    str_replace_all('https://openalex\\.org/', '') %>%
-    str_replace_all('https://doi\\.org/', '')
-}
 
 # 3. OPTIMIZED PROCESSING FUNCTION
 process_data_optimized <- function(batch_size = 50000) {
