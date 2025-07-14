@@ -1,5 +1,29 @@
 // --- Index Page Script ---
 document.addEventListener('DOMContentLoaded', function () {
+        // Institution autocomplete
+    const affiliationInput = document.querySelector('input[name="affiliations"]');
+    if (affiliationInput) {
+        const datalistId = 'institutionList';
+        let datalist = document.getElementById(datalistId);
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = datalistId;
+            document.body.appendChild(datalist);
+        }
+        affiliationInput.setAttribute('list', datalistId);
+
+        fetch('/institutions')
+            .then(res => res.json())
+            .then(data => {
+                const fragment = document.createDocumentFragment();
+                data.institutions.forEach(inst => {
+                    const option = document.createElement('option');
+                    option.value = inst;
+                    fragment.appendChild(option);
+                });
+                datalist.appendChild(fragment);
+            });
+    }
     // Main search bar enhancements
     const mainSearch = document.getElementById('mainSearch');
     const form = document.querySelector('form');

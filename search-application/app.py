@@ -50,6 +50,11 @@ def filter_dataframe(params):
 def index():
     return render_template('index.html')
 
+@app.route('/institutions')
+def get_institutions():
+    institutions = sorted(df_publications['host_organization_name'].dropna().unique().tolist())
+    return {'institutions': institutions}
+
 @app.route('/search', methods=['POST'])
 def search():
     try:
