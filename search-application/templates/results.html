@@ -46,16 +46,16 @@
             </form>
             <button class="page-link" onclick="changePage({{ p }})">{{ p }}</button>
             {% set col_map = {
-                'abstract.s': 'Abstract',
-                'affiliations': 'Institutionals Affiliations',
-                'article title': 'Article Title',
-                'author full names': 'Authors',
+                'title': 'Title',
+                'abstract': 'Abstract',
                 'doi': 'DOI',
-                'wos categories': 'WoS Categories',
-                'year': 'Year'
+                'publication_year': 'Year',
+                'host_organization_name': 'Institution',
+                'author_names': 'Authors',
+                'topic_names': 'Topics'
             } %}
-            {% set display_cols = ['abstract.s', 'affiliations', 'article title', 'author full names', 'doi', 'wos categories', 'year'] %}
-            {% set capped_cols = ['abstract.s', 'affiliations', 'article title', 'author full names'] %}
+            {% set display_cols = ['title', 'abstract', 'doi', 'publication_year', 'host_organization_name', 'author_names', 'topic_names'] %}
+            {% set capped_cols = ['title', 'abstract', 'author_names', 'topic_names'] %}
 
             {% if results %}
             <div class="d-flex justify-content-between align-items-center mb-3">

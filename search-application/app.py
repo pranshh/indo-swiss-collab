@@ -4,42 +4,46 @@ import re
 import os
 
 app = Flask(__name__)
-DATA_PATH = os.path.join("data", "publication_details.feather")
+DATA_PATH = os.path.join("data", "publication.parquet")
 RESULTS_PER_PAGE = 100
 
-df_publications = pd.read_feather(DATA_PATH)
+df_publications = pd.read_parquet(DATA_PATH)
 
 def filter_dataframe(params):
     df = df_publications.copy()
+
     if params.get('title'):
-        df = df[df['article title'].str.contains(params['title'], case=False, na=False, regex=False)]
+        df = df[df['title'].str.contains(params['title'], case=False, na=False)]
+
     if params.get('authors'):
-        mask1 = df['author full names'].str.contains(params['authors'], case=False, na=False, regex=False)
-        mask2 = df['authors'].str.contains(params['authors'], case=False, na=False, regex=False)
-        df = df[mask1 | mask2]
+        df = df[df['author_names'].str.contains(params['authors'], case=False, na=False)]
+
     if params.get('abstract'):
-        mask1 = df['abstract.s'].str.contains(params['abstract'], case=False, na=False, regex=False)
-        mask2 = df['abstract.w'].str.contains(params['abstract'], case=False, na=False, regex=False)
-        mask3 = df['article title'].str.contains(params['abstract'], case=False, na=False, regex=False)
-        df = df[mask1 | mask2 | mask3]
+        df = df[df['abstract'].str.contains(params['abstract'], case=False, na=False)]
+
     if params.get('affiliations'):
-        df = df[df['affiliations'].str.contains(params['affiliations'], case=False, na=False, regex=False)]
+        df = df[df['host_organization_name'].str.contains(params['affiliations'], case=False, na=False)]
+
+    if params.get('abstract'):
+        df = df[df['abstract'].str.contains(params['abstract'], case=False, na=False)]
+
     if params.get('year'):
         year_val = params['year']
         if 'BETWEEN' in year_val:
             parts = year_val.replace('BETWEEN', '').split('AND')
             if len(parts) == 2:
                 start, end = int(parts[0]), int(parts[1])
-                df = df[(df['year'] >= start) & (df['year'] <= end)]
+                df = df[(df['publication_year'] >= start) & (df['publication_year'] <= end)]
         elif year_val.startswith('>='):
-            df = df[df['year'] >= int(year_val[2:].strip())]
+            df = df[df['publication_year'] >= int(year_val[2:].strip())]
         elif year_val.startswith('<='):
-            df = df[df['year'] <= int(year_val[2:].strip())]
+            df = df[df['publication_year'] <= int(year_val[2:].strip())]
         else:
             try:
-                df = df[df['year'] == int(year_val)]
+                df = df[df['publication_year'] == int(year_val)]
             except ValueError:
                 pass
+
     return df
 
 @app.route('/')
