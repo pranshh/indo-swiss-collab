@@ -50,20 +50,21 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.627 2.707-3.227V6.741c0-1.6-1.123-2.994-2.707-3.227A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.514C3.373 3.747 2.25 5.14 2.25 6.741v6.018z"/>
                             </svg>
                         </div>
-
-                        <div class="filter-group">
-                            <input type="text" class="filter-input" name="authors" placeholder="Authors">
-                            <svg class="filter-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
-                            </svg>
+                        
+                        <div id="authors-container" class="filter-group-multi">
+                            <label class="form-label">Authors</label>
+                            <div class="multi-input">
+                                <input type="text" class="filter-input" name="authors" placeholder="Author">
+                                <button type="button" class="btn btn-sm btn-outline-secondary add-btn" data-target="authors-container">+</button>
+                            </div>
                         </div>
-
-                        <div class="filter-group">
-                            <input type="text" class="filter-input" name="affiliations" placeholder="Institution" list="institutionList">
-                            <datalist id="institutionList"></datalist>
-                            <svg class="filter-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m2.25-18v18m13.5-18v18m2.25-18v18M6.75 9h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.75m-.75 3h.75m-.75 1.5h.75m-3.75-6h.75m-.75 3h.75m-.75 3h.75m-.75 1.5h.75"/>
-                            </svg>
+                        
+                        <div id="affiliations-container" class="filter-group-multi">
+                            <label class="form-label">Institution</label>
+                            <div class="multi-input">
+                                <input type="text" class="filter-input" name="affiliations" placeholder="Institution" list="institutionList">
+                                <button type="button" class="btn btn-sm btn-outline-secondary add-btn" data-target="affiliations-container">+</button>
+                            </div>
                         </div>
 
                         <div class="filter-group">

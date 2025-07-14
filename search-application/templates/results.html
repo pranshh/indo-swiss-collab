@@ -28,7 +28,9 @@
                 <div class="d-flex gap-2">
                     <form action="/download" method="post" class="d-inline">
                         {% for key, value in request.form.items() %}
-                        <input type="hidden" name="{{ key }}" value="{{ value }}">
+                            {% if key != 'page' %}
+                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                            {% endif %}
                         {% endfor %}
                         <button type="submit" class="download-btn" style="background: #ffddc2; color: #6b1e1e; border-radius: 19.5px; padding: 8px 24px; font-weight: 600; border: none; box-shadow: 0px 0px 10px rgba(0,0,0,0.15); transition: all 0.3s;">
                             <i class="fas fa-download me-2"></i>Download All Results
@@ -40,22 +42,27 @@
             <form id="searchForm" method="post" action="/search" class="hidden-form">
                 {% for key, value in request.form.items() %}
                     {% if key != 'page' %}
-                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        <input type="hidden" name="{{ key }}" value="{{ value }}">
                     {% endif %}
                 {% endfor %}
             </form>
-            <button class="page-link" onclick="changePage({{ p }})">{{ p }}</button>
+
             {% set col_map = {
-                'title': 'Title',
-                'abstract': 'Abstract',
-                'doi': 'DOI',
-                'publication_year': 'Year',
-                'host_organization_name': 'Institution',
-                'author_names': 'Authors',
-                'topic_names': 'Topics'
+                'title':                'Title',
+                'abstract':             'Abstract',
+                'doi':                  'DOI',
+                'publication_year':     'Year',
+                'institutions':         'Institution',
+                'authors':              'Authors',
             } %}
-            {% set display_cols = ['title', 'abstract', 'doi', 'publication_year', 'host_organization_name', 'author_names', 'topic_names'] %}
-            {% set capped_cols = ['title', 'abstract', 'author_names', 'topic_names'] %}
+            {% set display_cols = [
+                'title',
+                'abstract',
+                'doi',
+                'publication_year',
+                'institutions',
+                'authors',
+            ] %}
 
             {% if results %}
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -75,9 +82,7 @@
                                 <th style="padding: 14px 10px; color: #6b1e1e; font-size: 18px; font-weight: 600; border: none;">
                                     {% if col == 'doi' %}
                                         <i class="fas fa-link"></i>
-                                    {% elif col == 'author full names' %}
-                                        <i class="fas fa-user"></i>
-                                    {% elif col == 'year' %}
+                                    {% elif col == 'publication_year' %}
                                         <i class="fas fa-calendar"></i>
                                     {% endif %}
                                     {{ col_map[col] }}
@@ -89,25 +94,19 @@
                         {% for row in results %}
                         <tr class="table-row" style="transition: background 0.2s, box-shadow 0.2s;">
                             {% for col in display_cols %}
-                                <td class="table-cell" style="padding: 12px 10px; font-size: 16px; color: #222; vertical-align: middle; background: none;"
-                                    {% set value = row[col] %}
-                                    {% if col in capped_cols and value and (value|string)|length > 100 %}
-                                        data-fulltext="{{ value|e }}"
-                                    {% elif value %}
-                                        data-fulltext="{{ value|e }}"
-                                    {% endif %}
-                                >
+                                {% set value = row[col] %}
+                                <td class="table-cell" style="padding: 12px 10px; font-size: 16px; color: #222; vertical-align: middle; background: none;">
                                     {% if col == 'doi' and value %}
                                         <a href="https://doi.org/{{ value }}" class="doi-link" target="_blank" title="Open DOI" style="color: #b45252; text-decoration: underline;">
                                             <i class="fas fa-link"></i> {{ value }}
                                         </a>
-                                    {% elif col == 'year' and value is not none %}
+                                    {% elif col == 'publication_year' and value is not none %}
                                         {{ value|int }}
-                                    {% elif col in capped_cols and value and (value|string)|length > 100 %}
-                                        <span class="text-preview">{{ value[:100] }}...</span>
-                                        <button type="button" class="expand-btn" onclick="toggleText(this)" title="Show full text" style="background: none; border: none; color: #b45252; cursor: pointer; margin-left: 6px;">
-                                            <i class="fas fa-chevron-down expand-icon"></i>
-                                        </button>
+                                    {% elif value and (value|string)|length > 100 %}
+                                        <span class="truncated-text" title="{{ value|e }}">
+                                            {{ (value|string)[:100] }}
+                                        </span>
+                                        <i class="fas fa-info-circle truncated-icon" title="{{ value|e }}"></i>
                                     {% else %}
                                         {{ value }}
                                     {% endif %}

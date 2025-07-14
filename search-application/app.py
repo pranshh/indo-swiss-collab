@@ -4,25 +4,55 @@ import re
 import os
 
 app = Flask(__name__)
-DATA_PATH = os.path.join("data", "publication.parquet")
+DATA_PATH = os.path.join("data", "publications_full_dataset_2000-2024.parquet")
+INST_PATH = os.path.join("data", "institutional_relationships_IN_CH.parquet")
+
 RESULTS_PER_PAGE = 100
 
 df_publications = pd.read_parquet(DATA_PATH)
+df_institutions = pd.read_parquet(INST_PATH)['institution_name'] \
+                    .dropna() \
+                    .unique() \
+                    .tolist()
+df_institutions = sorted(df_institutions)
+
+print("AUTHORS column sample:", df_publications['authors'].head(3), 
+      "\nType of first cell:", type(df_publications['authors'].iloc[0]))
+
 
 def filter_dataframe(params):
     df = df_publications.copy()
 
     if params.get('title'):
         df = df[df['title'].str.contains(params['title'], case=False, na=False)]
+    
+    authors = params.get('authors', [])
+    if authors:
+        def author_match(cell):
+            if not isinstance(cell, str): return False
+            parts = [p.strip() for p in cell.split(';') if p.strip()]
+            # for *each* user-entered author, at least one part must contain it
+            return all(
+                any(author.lower() in part.lower() for part in parts)
+                for author in authors
+            )
+        df = df[df['authors'].apply(author_match)]
 
-    if params.get('authors'):
-        df = df[df['author_names'].str.contains(params['authors'], case=False, na=False)]
+    print("AFTER AUTHOR FILTER: ", len(df), "rows")
 
     if params.get('abstract'):
         df = df[df['abstract'].str.contains(params['abstract'], case=False, na=False)]
-
-    if params.get('affiliations'):
-        df = df[df['host_organization_name'].str.contains(params['affiliations'], case=False, na=False)]
+    
+    affils = params.get('affiliations', [])
+    if affils:
+        def inst_match(cell):
+            if not isinstance(cell, str): return False
+            parts = [p.strip() for p in cell.split(';') if p.strip()]
+            return all(
+                any(inst.lower() in part.lower() for part in parts)
+                for inst in affils
+            )
+        df = df[df['institutions'].apply(inst_match)]
 
     if params.get('abstract'):
         df = df[df['abstract'].str.contains(params['abstract'], case=False, na=False)]
@@ -44,6 +74,9 @@ def filter_dataframe(params):
             except ValueError:
                 pass
 
+        print("After authors filter →", len(df), "rows")
+        print("After insts filter   →", len(df), "rows")
+        
     return df
 
 @app.route('/')
@@ -52,23 +85,24 @@ def index():
 
 @app.route('/institutions')
 def get_institutions():
-    institutions = sorted(df_publications['host_organization_name'].dropna().unique().tolist())
-    return {'institutions': institutions}
+    return {'institutions': df_institutions}
 
 @app.route('/search', methods=['POST'])
 def search():
     try:
         page = int(request.form.get('page', 1))
         params = {
-            'title': request.form.get('title', '').strip(),
-            'authors': request.form.get('authors', '').strip(),
-            'abstract': request.form.get('abstract', '').strip(),
-            'affiliations': request.form.get('affiliations', '').strip(),
-            'doi': request.form.get('doi', '').strip(),
-            'wos_categories': request.form.get('wos_categories', '').strip(),
-            'year': ''
+            # strings:
+            'title':        request.form.get('title','').strip(),
+            'abstract':     request.form.get('abstract','').strip(),
+            'doi':          request.form.get('doi','').strip(),
+            'year':         '',
+            # lists:
+            'authors':      [a.strip() for a in request.form.getlist('authors') if a.strip()],
+            'affiliations': [i.strip() for i in request.form.getlist('affiliations') if i.strip()],
         }
-        
+        print("FILTER PARAMS:", params)
+
         year_from = request.form.get('year_from', '').strip()
         year_to = request.form.get('year_to', '').strip()
         if year_from and year_to:
@@ -117,17 +151,16 @@ def search():
 @app.route('/download', methods=['POST'])
 def download():
     params = {
-        'title': request.form.get('title', '').strip(),
-        'authors': request.form.get('authors', '').strip(),
-        'abstract': request.form.get('abstract', '').strip(),
-        'affiliations': request.form.get('affiliations', '').strip(),
-        'doi': request.form.get('doi', '').strip(),
-        'wos_categories': request.form.get('wos_categories', '').strip(),
-        'year': ''
+        'title':        request.form.get('title','').strip(),
+        'abstract':     request.form.get('abstract','').strip(),
+        'doi':          request.form.get('doi','').strip(),
+        'year':         '',
+        'authors':      [a.strip() for a in request.form.getlist('authors') if a.strip()],
+        'affiliations': [i.strip() for i in request.form.getlist('affiliations') if i.strip()],
     }
-    
+
     year_from = request.form.get('year_from', '').strip()
-    year_to = request.form.get('year_to', '').strip()
+    year_to   = request.form.get('year_to',   '').strip()
     if year_from and year_to:
         params['year'] = f"BETWEEN {year_from} AND {year_to}"
     elif year_from:
@@ -136,13 +169,19 @@ def download():
         params['year'] = f"<= {year_to}"
 
     df = filter_dataframe(params)
+
+    print("DOWNLOAD: total rows =", len(df))
+
     csv_data = df.to_csv(index=False)
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     return Response(
         csv_data,
         mimetype="text/csv",
-        headers={"Content-disposition": f"attachment; filename=results_{timestamp}.csv"}
+        headers={
+            "Content-Disposition": f"attachment; filename=results_{timestamp}.csv"
+        }
     )
+
 
 @app.route('/about')
 def about():

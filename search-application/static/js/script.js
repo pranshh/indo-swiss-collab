@@ -41,6 +41,17 @@ document.addEventListener('DOMContentLoaded', function () {
             this.parentElement.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)';
         });
     }
+    
+    // --- dynamic multi-input support ---
+    document.querySelectorAll('.add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const container = document.getElementById(btn.dataset.target);
+            const lastInput = container.querySelector('.multi-input:last-of-type');
+            const clone = lastInput.cloneNode(true);
+            clone.querySelector('input').value = '';
+            container.appendChild(clone);
+        });
+    });
 
     // --- About Page Enhancements ---
     // Animate content on scroll
@@ -264,40 +275,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Download button loading state
-    const downloadBtn = document.querySelector('.download-btn');
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', function () {
-            const originalText = this.innerHTML;
-            this.innerHTML = `
-                <svg class="download-icon animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                Downloading...
-            `;
-            this.disabled = true;
-            setTimeout(() => {
-                this.innerHTML = originalText;
-                this.disabled = false;
-            }, 3000);
-        });
-    }
+// — fixed download with spinner + explicit submit —
+const downloadBtn = document.querySelector('.download-btn');
+if (downloadBtn) {
+  downloadBtn.addEventListener('click', function (e) {
+    e.preventDefault();                        // stop any default
+    const form = this.closest('form');         // find the download <form>
 
-    // Add CSS for spinning animation
-    if (!document.getElementById('spin-style')) {
-        const style = document.createElement('style');
-        style.id = 'spin-style';
-        style.textContent = `
-            .animate-spin {
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                from { transform: rotate(0deg);}
-                to { transform: rotate(360deg);}
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    const originalHTML = this.innerHTML;
+    // show spinner
+    this.innerHTML = `
+      <svg class="download-icon animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Downloading...
+    `;
+    this.disabled = true;
 
+    form.submit();                              // now manually submit
+
+    // (optional) if you ever navigate back to this page and want to re-enable:
+    // setTimeout(() => {
+    //   this.innerHTML = originalHTML;
+    //   this.disabled = false;
+    // }, 5000);
+  });
+}
     // Responsive table scroll indicator
     function handleTableResponsive() {
         const table = document.querySelector('.results-table');
