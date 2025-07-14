@@ -7,6 +7,9 @@ output:
   pdf_document: default
 ---
 
+This file contains the comparison of data we get from OpenAlex from searching for Indo-Swiss coauthored publications over the past 25 years, and the comparison to Scopus and Web of Science.
+It has been superseded by a later version of the database. OpenAlex has all the entries found in Web of Science and Scopus, we just had to query for those individual DOIs. Since the OpenAlex data is better structured, we are then proceeding with using only OpenAlex data for the whole analysis going ahead.
+
 ```{r setup, echo=F, eval =T}
 rm(list = ls())
 source('core_utilities.R')

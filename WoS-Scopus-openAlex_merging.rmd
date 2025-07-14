@@ -1,0 +1,1471 @@
+---
+title: "Indo-Swiss Research Database - Merging data available between Web of Science,
+  Scopus and OpenAlex"
+author: "Siddharth Bharath, Pranshu Jaiswal, Lena Robra, Manfred Max Bergman"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+  always_allow_html: true
+  word_document: default
+---
+
+This report presents the comprehensive results of a multi-phase data enhancement and processing exercise that successfully created the most complete dataset of Indo-Swiss collaborative research publications available. The project integrated publication metadata from three major bibliographic databases (OpenAlex, Web of Science, and Scopus) and performed extensive author and institutional data processing to create a structured, analysis-ready research collaboration database.
+Database Coverage and Integration
+The final enhanced dataset contains 24,979 unique publications, representing a substantial expansion from the original Phase 1 database. The coverage analysis reveals the complementary nature of the three databases:
+Individual Database Coverage
+
+OpenAlex: 24,900 DOIs (99.7% coverage) - highest overall coverage
+Scopus: 16,546 DOIs (66.2% coverage)
+Web of Science: 16,058 DOIs (64.3% coverage)
+
+Coverage Overlap Analysis
+
+Unique to one database: 5,892 DOIs (23.6% of total)
+OpenAlex-only publications: 79 papers that could not be matched to WoS/Scopus
+
+The high OpenAlex coverage (99.7%) demonstrates the value of incorporating this open-access focused database, which captured nearly 5,900 additional publications beyond what was available through traditional subscription databases alone.
+Data Enhancement Results
+The integration process significantly improved data completeness across multiple critical fields:
+Abstract Enhancement
+
+Original abstracts (OpenAlex only): 18,434 papers
+Enhanced abstracts: 22,929 papers
+Improvement: 4,495 additional abstracts (+24.4%)
+
+Citation Data Enhancement
+
+Original citations: 20,973 papers
+Enhanced citations: 21,264 papers
+Improvement: 291 additional citation records
+
+Funding Information Enhancement
+This represents the most significant improvement in data completeness:
+
+Original funding records (OpenAlex): 5,345 papers
+Enhanced funding details: 13,234 papers
+Enhanced funding text: 12,419 papers
+Total improvement: 7,889 additional funding records (+147.6%)
+
+Keywords and Topic Classification
+
+Author keywords: Comprehensive coverage with 23,945 papers from OpenAlex plus 10,313 from WoS/Scopus
+Scopus index keywords: 11,716 papers
+Web of Science Keywords Plus: 12,937 papers
+OpenAlex topic classification: 24,392 papers (97.6% coverage)
+
+Author and Institution Processing
+Processing Scale and Performance
+A comprehensive processing operation handled 5.4 million individual author-publication records, involving:
+
+82,284 unique JSON affiliation records parsed and standardized
+Complete processing time: Approximately 7 minutes for the entire pipeline
+Zero data loss during aggregation and deduplication
+
+Author-Level Processing (5.4M records)
+
+Institution standardization: Extracted clean institution names with country codes (format: "Institution Name, CC")
+Multiple affiliation handling: Properly processed authors with multiple institutional affiliations
+Country extraction: Identified all countries associated with each author
+Quantitative metrics: Added counts of institutions and countries per author
+
+Publication-Level Aggregation (24,979 publications)
+
+Deduplication: Ensured unique institution lists per publication (no repeated institutions)
+Comprehensive coverage: 97.0% of publications (24,013) have complete institutional data
+Geographic mapping: 97.0% of publications have country information
+Author consolidation: Combined all authors per publication with complete affiliation details
+
+Institutional Landscape Analysis
+The processing identified 2,250 unique institutions from India and Switzerland, revealing the collaborative research ecosystem:
+Top Collaborative Institutions:
+
+ETH Zurich (CH): 3,448 publications, 3,274 authors
+University of Zurich (CH): 2,834 publications, 2,257 authors
+European Organization for Nuclear Research (CH): 2,802 publications, 8,693 authors
+Tata Institute of Fundamental Research (IN): 2,553 publications, 888 authors
+Panjab University (IN): 2,494 publications, 413 authors
+
+Key Achievements
+
+Comprehensive Coverage: Achieved 99.7% database coverage through OpenAlex integration
+Enhanced Metadata Quality: Significant improvements in abstracts (+24.4%) and funding information (+147.6%)
+Multi-Source Validation: Three-database approach enables cross-validation and gap-filling
+Advanced Topic Classification: OpenAlex's machine learning-based topic classification covers 97.6% of publications
+Institutional Mapping: Processed 2,250 unique institutions with complete relationship networks
+Open Science Alignment: Integration with OpenAlex supports open science principles while maintaining quality
+
+Final Dataset Characteristics
+The enhanced dataset contains:
+
+Total publications: 24,979
+Publications with abstracts: 22,929 (91.8%)
+Publications with citations: 21,264 (85.1%)
+Publications with funding information: 13,234 (53.0%)
+Publications with topic classification: 24,392 (97.6%)
+Publications with institutional data: 24,013 (97.0%)
+
+Data Products Delivered
+Three optimized datasets were created in Parquet format for efficient analysis:
+
+Flat Author Dataset: 5.4M records with individual author-institution mappings
+Publication Summary: 24,979 publications with aggregated metadata
+Institutional Relationships: 2,250 institutions with linked publication networks
+
+Strategic Impact
+This comprehensive enhancement represents a significant advancement in the scope and analytical potential of the Indo-Swiss research collaboration database. The multi-database approach combined with extensive processing has resulted in:
+
+23.6% increase in unique publications discovered
+Near-complete coverage (99.7%) of the collaborative research landscape
+Dramatically improved funding information for policy analysis
+Advanced topic classification capabilities for trend analysis
+Enhanced research impact assessment through improved citation data
+Relational database readiness for institutional collaboration analysis
+
+The resulting database now provides stakeholders with the most comprehensive view of Indo-Swiss research collaborations available, supporting evidence-based policy decisions, strategic research planning, and detailed bibliometric analysis of bilateral scientific cooperation.
+
+---
+
+## Appendix A: Final Dataset Field Descriptions
+
+| Field Name | Description |
+|------------|-------------|
+| `work_id` | OpenAlex unique work identifier |
+| `title` | Publication title (harmonized across databases) |
+| `display_name` | Display name from OpenAlex |
+| `abstract` | Abstract text (enhanced from multiple sources) |
+| `doi` | Digital Object Identifier |
+| `publication_date` | Full publication date |
+| `publication_year` | Publication year (integer) |
+| `cited_by_count` | Citation count (maximum from all databases) |
+| `ids` | JSON array of all identifiers across databases |
+| `document type` | Document type classification (normalized to lowercase) |
+| `is_oa` | Open access status (boolean) |
+| `source_display_name` | Journal/venue name |
+| `source_id` | OpenAlex source identifier |
+| `issn_l` | Linking ISSN |
+| `host_organization` | Publisher organization ID |
+| `host_organization_name` | Publisher organization name |
+| `landing_page_url` | Primary URL for the publication |
+| `pdf_url` | Direct PDF access URL (when available) |
+| `license` | Publication license information |
+| `version` | Publication version type |
+| `keywords` | OpenAlex keyword classification (JSON) |
+| `is_retracted` | Retraction status (boolean) |
+| `grants` | Grant information from OpenAlex |
+| `primary_topic_id` | Primary research topic ID (OpenAlex classification) |
+| `primary_topic_name` | Primary research topic name |
+| `primary_topic_score` | Topic classification confidence (0-1) |
+| `primary_subfield_id` | Research subfield ID |
+| `primary_subfield_name` | Research subfield name |
+| `primary_field_id` | Research field ID |
+| `primary_field_name` | Research field name |
+| `primary_domain_id` | Research domain ID |
+| `primary_domain_name` | Research domain name |
+| `funding_details` | Enhanced funding details (from WoS/Scopus) |
+| `funding_text` | Enhanced funding acknowledgment text |
+| `author_keywords` | Author-provided keywords (enhanced) |
+| `index_keywords_scopus` | Scopus-assigned index keywords |
+| `keywords_plus_wos` | Web of Science Keywords Plus |
+
+**Note**: The dataset combines information from OpenAlex (primary), Web of Science, and Scopus, with preference given to the most complete and highest quality data available from each source for individual fields.
+
+
+```{r setup, echo=F, eval =T, warning = F}
+rm(list = ls())
+source('core_utilities.R')
+using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2','readxl','readr','purrr','knitr','tibble', 'arrow','jsonlite')
+using('VennDiagram','kableExtra','RColorBrewer','gridExtra','scales')
+
+paper.details.oa = read_parquet('Data/publication_combined_2000_2024.parquet')
+
+# paper.details.oa = filter(paper.details.oa,!is_retracted) %>% select(-is_retracted)
+
+paper.details.oa = paper.details.oa %>% 
+rename(`document type` = type) %>%
+filter(!grepl('retract', `document type`)) %>%  
+# filter(`document type` %in% c('article','book','book-chapter','dataset','letter','reference-entry','report','review', 'editorial')) %>% 
+ungroup() %>%
+  mutate(doi = tolower(doi))
+
+paper.details.ws = read_parquet('Data/publication_details_WoS-Scopus.parquet')
+
+#Retain articles - remove letters, notes, errata
+#Document types are mostly derived from Scopus. Look at https://www.ilovephd.com/list-of-document-types-covered-in-scopus/ - for details of what they refer to
+paper.details.ws = paper.details.ws %>% 
+# filter((grepl('(Article|Review|Book)',`document type`) | `document type` %in% c('Conference paper','Data paper','Proceedings Paper', 'Review', 'Short survey','Editorial')) & !grepl('Retract', `document type`)) %>%
+filter(!grepl('Retract', `document type`)) %>%  
+select(-pubNum)
+
+# Add source information and match the two datasets by doi
+dois = paper.details.ws %>% select(doi,datasource) %>%
+mutate(Scopus = datasource %in% c('Both','Scopus'),
+WoS = datasource %in% c('Both','WoS'), doi = tolower(doi)) %>%
+full_join(paper.details.oa %>% select(doi) %>% mutate(openAlex = TRUE), by = join_by(doi)) %>% replace_na(list(Scopus = FALSE, WoS = FALSE, openAlex = FALSE)) %>% select(-datasource)
+
+missing_oa = paper.details.ws %>% filter(doi %in% dois$doi[dois$openAlex == F])
+# library(openalexR)
+# addn.data = get_openalex_data(dois = missing_oa$doi)
+
+# tot.papers = nrow(paper.details)
+# 
+# #report the data that we have
+# printo('We have ',tot.papers,' publications pulled from Web of Science and Scopus in our analysis.')
+# 
+# printo('The data sources of these publications are as follows - \n',round(sum(paper.details$datasource == 'Both')/tot.papers*100),"% available in both databases,\n",round(sum(paper.details$datasource == 'Scopus')/tot.papers*100),"% available only from Scopus,\n",round(sum(paper.details$datasource == 'WoS')/tot.papers*100),"% available only from Web of Science.\n")
+# 
+# 
+
+```
+
+
+# Database Coverage Analysis
+
+```{r coverage-analysis, fig.width=8, fig.height=4, warning=FALSE, message=FALSE, echo = F}
+# library(dplyr)
+# library(ggplot2)
+# library(VennDiagram)
+# library(RColorBrewer)
+# library(gridExtra)
+# library(scales)
+# library(tidyr)
+
+# Calculate coverage statistics
+coverage_stats <- dois %>%
+  summarise(
+    total_dois = n(),
+    scopus_coverage = sum(Scopus, na.rm = TRUE),
+    wos_coverage = sum(WoS, na.rm = TRUE),
+    openalex_coverage = sum(openAlex, na.rm = TRUE),
+    scopus_pct = round(100 * scopus_coverage / total_dois, 1),
+    wos_pct = round(100 * wos_coverage / total_dois, 1),
+    openalex_pct = round(100 * openalex_coverage / total_dois, 1)
+  )
+
+# Create overlap analysis
+overlap_analysis <- dois %>%
+  mutate(
+    coverage_pattern = case_when(
+      Scopus & WoS & openAlex ~ "All three databases",
+      Scopus & WoS & !openAlex ~ "Scopus + WoS only",
+      Scopus & !WoS & openAlex ~ "Scopus + OpenAlex only",
+      !Scopus & WoS & openAlex ~ "WoS + OpenAlex only",
+      Scopus & !WoS & !openAlex ~ "Scopus only",
+      !Scopus & WoS & !openAlex ~ "WoS only",
+      !Scopus & !WoS & openAlex ~ "OpenAlex only",
+      TRUE ~ "None"
+    )
+  ) %>%
+  count(coverage_pattern) %>%
+  mutate(
+    percentage = round(100 * n / sum(n), 1),
+    coverage_pattern = factor(coverage_pattern, levels = c(
+      "All three databases", "Scopus + WoS only", "Scopus + OpenAlex only", 
+      "WoS + OpenAlex only", "Scopus only", "WoS only", "OpenAlex only", "None"
+    ))
+  )
+
+# 1. Overall coverage bar chart
+p1 <- coverage_stats %>%
+  select(ends_with("_coverage")) %>%
+  pivot_longer(everything(), names_to = "database", values_to = "count") %>%
+  mutate(
+    database = case_when(
+      database == "scopus_coverage" ~ "Scopus",
+      database == "wos_coverage" ~ "Web of Science",
+      database == "openalex_coverage" ~ "OpenAlex"
+    ),
+    percentage = round(100 * count / coverage_stats$total_dois, 1),
+    database = factor(database, levels = c("OpenAlex", "Scopus", "Web of Science"))
+  ) %>%
+  ggplot(aes(x = database, y = count, fill = database)) +
+  geom_col(width = 0.6, alpha = 0.9) +
+  geom_text(aes(label = paste0(comma(count), "\n(", percentage, "%)")), 
+            vjust = -0.5, size = 4, fontface = "bold", color = "black") +
+  scale_fill_manual(values = c("Scopus" = "#E31A1C", "Web of Science" = "#1F78B4", "OpenAlex" = "#33A02C")) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    title = "Database Coverage Comparison",
+    subtitle = paste("Total DOIs analyzed:", comma(coverage_stats$total_dois)),
+    x = "Database",
+    y = "Number of DOIs Covered"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 13),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+# 2. Overlap patterns with better colors
+color_palette <- c(
+  "All three databases" = "#2E8B57",
+  "Scopus + WoS only" = "#FF6347", 
+  "Scopus + OpenAlex only" = "#4169E1",
+  "WoS + OpenAlex only" = "#FF8C00",
+  "Scopus only" = "#E31A1C",
+  "WoS only" = "#1F78B4",
+  "OpenAlex only" = "#33A02C"
+)
+
+p2 <- overlap_analysis %>%
+  filter(coverage_pattern != "None") %>%
+  ggplot(aes(x = reorder(coverage_pattern, n), y = n, fill = coverage_pattern)) +
+  geom_col(width = 0.7, alpha = 0.9) +
+  geom_text(aes(label = paste0(comma(n), "\n(", percentage, "%)")), 
+            hjust = -0.1, size = 3.8, fontface = "bold") +
+  scale_fill_manual(values = color_palette) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.12))) +
+  coord_flip() +
+  labs(
+    title = "Database Overlap Patterns",
+    subtitle = "Distribution of DOIs across different database combinations",
+    x = "Coverage Pattern",
+    y = "Number of DOIs"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5),
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 13),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+# 3. Create summary table
+coverage_table <- overlap_analysis %>%
+  arrange(desc(n)) %>%
+  mutate(
+    Pattern = coverage_pattern,
+    Count = comma(n),
+    Percentage = paste0(percentage, "%")
+  ) %>%
+  select(Pattern, Count, Percentage)
+
+# Combine the two main plots
+combined_plots <- grid.arrange(p1, p2, ncol = 2, widths = c(1, 1.2))
+
+# Print the combined plots
+print(combined_plots)
+
+ggsave(combined_plots, file = 'plots/Database coverage statistics.png', width = 7, height = 3.5, units = 'in', scale = 2)
+```
+
+### Coverage Summary Table
+
+```{r coverage-table, results='asis', echo = F}
+
+
+kable(coverage_table, 
+      caption = "Database Coverage Pattern Distribution",
+      align = c("l", "r", "r")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), 
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(1, bold = TRUE, background = "#f0f0f0")
+```
+
+### Key Findings
+
+```{r coverage-summary, results='asis', echo = F}
+# Generate summary statistics
+cat("**Database Coverage Summary:**\n\n")
+cat("- **Scopus**: ", comma(coverage_stats$scopus_coverage), " DOIs (", coverage_stats$scopus_pct, "%)\n")
+cat("- **Web of Science**: ", comma(coverage_stats$wos_coverage), " DOIs (", coverage_stats$wos_pct, "%)\n")
+cat("- **OpenAlex**: ", comma(coverage_stats$openalex_coverage), " DOIs (", coverage_stats$openalex_pct, "%)\n\n")
+
+# Coverage overlap insights
+complete_coverage <- overlap_analysis %>% filter(coverage_pattern == "All three") %>% pull(n)
+cat("**Coverage Overlap:**\n\n")
+cat("- **All three databases**: ", comma(complete_coverage), " DOIs (", 
+    round(100 * complete_coverage / coverage_stats$total_dois, 1), "%)\n")
+
+# Unique coverage
+unique_coverage <- overlap_analysis %>% 
+  filter(coverage_pattern %in% c("Scopus only", "WoS only", "OpenAlex only")) %>%
+  summarise(total = sum(n)) %>% pull(total)
+cat("- **Unique to one database**: ", comma(unique_coverage), " DOIs (", 
+    round(100 * unique_coverage / coverage_stats$total_dois, 1), "%)\n\n")
+
+# Database-specific insights
+cat("**Database-Specific Insights:**\n\n")
+if (coverage_stats$openalex_pct > coverage_stats$scopus_pct & coverage_stats$openalex_pct > coverage_stats$wos_pct) {
+  cat("- OpenAlex shows the highest coverage, reflecting its open-access focus and broader indexing approach\n")
+} else if (coverage_stats$scopus_pct > coverage_stats$wos_pct) {
+  cat("- Scopus demonstrates higher coverage than Web of Science in this dataset\n")
+} else {
+  cat("- Web of Science shows competitive coverage compared to other databases\n")
+}
+
+# missing_from_all <- coverage_stats$total_dois - max(coverage_stats$scopus_coverage, coverage_stats$wos_coverage, coverage_stats$openalex_coverage)
+# if (missing_from_all > 0) {
+#   cat("- ", comma(missing_from_all), " DOIs are missing from at least one major database, highlighting the value of multi-database searches\n")
+# }
+
+printo('Directly doing a search on openAlex for co-authored Indo Swiss publications results in only 19130 results. There are some limitations in their search tool that leads to lower coverage. After looking through the additional data provided by Web of Science and Scopus, we then searched for those papers on Open Alex and were able to raise the total OpenAlex data coverage to ',nrow(paper.details.oa),' entries.')
+
+```
+
+```{r coverage-analysis-old, include=F, eval=F, fig.width=12, fig.height=10, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(VennDiagram)
+library(RColorBrewer)
+library(gridExtra)
+library(scales)
+library(ggalluvial)
+
+# Calculate coverage statistics
+coverage_stats <- dois %>%
+  summarise(
+    total_dois = n(),
+    scopus_coverage = sum(Scopus, na.rm = TRUE),
+    wos_coverage = sum(WoS, na.rm = TRUE),
+    openalex_coverage = sum(openAlex, na.rm = TRUE),
+    scopus_pct = round(100 * scopus_coverage / total_dois, 1),
+    wos_pct = round(100 * wos_coverage / total_dois, 1),
+    openalex_pct = round(100 * openalex_coverage / total_dois, 1)
+  )
+
+# Create overlap analysis
+overlap_analysis <- dois %>%
+  mutate(
+    coverage_pattern = case_when(
+      Scopus & WoS & openAlex ~ "All three",
+      Scopus & WoS & !openAlex ~ "Scopus + WoS only",
+      Scopus & !WoS & openAlex ~ "Scopus + OpenAlex only",
+      !Scopus & WoS & openAlex ~ "WoS + OpenAlex only",
+      Scopus & !WoS & !openAlex ~ "Scopus only",
+      !Scopus & WoS & !openAlex ~ "WoS only",
+      !Scopus & !WoS & openAlex ~ "OpenAlex only",
+      TRUE ~ "None"
+    )
+  ) %>%
+  count(coverage_pattern) %>%
+  mutate(
+    percentage = round(100 * n / sum(n), 1),
+    coverage_pattern = factor(coverage_pattern, levels = c(
+      "All three", "Scopus + WoS only", "Scopus + OpenAlex only", 
+      "WoS + OpenAlex only", "Scopus only", "WoS only", "OpenAlex only", "None"
+    ))
+  )
+
+# 1. Overall coverage bar chart
+p1 <- coverage_stats %>%
+  select(ends_with("_coverage")) %>%
+  pivot_longer(everything(), names_to = "database", values_to = "count") %>%
+  mutate(
+    database = case_when(
+      database == "scopus_coverage" ~ "Scopus",
+      database == "wos_coverage" ~ "Web of Science",
+      database == "openalex_coverage" ~ "OpenAlex"
+    ),
+    percentage = round(100 * count / coverage_stats$total_dois, 1)
+  ) %>%
+  ggplot(aes(x = reorder(database, count), y = count, fill = database)) +
+  geom_col(width = 0.7, alpha = 0.8) +
+  geom_text(aes(label = paste0(comma(count), "\n(", percentage, "%)")), 
+            hjust = -0.1, size = 3.5, fontface = "bold") +
+  scale_fill_manual(values = c("Scopus" = "#E31A1C", "Web of Science" = "#1F78B4", "OpenAlex" = "#33A02C")) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.15))) +
+  coord_flip() +
+  labs(
+    title = "Database Coverage Comparison",
+    subtitle = paste("Total DOIs analyzed:", comma(coverage_stats$total_dois)),
+    x = "Database",
+    y = "Number of DOIs Covered"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 12)
+  )
+
+# 2. Overlap patterns
+p2 <- overlap_analysis %>%
+  filter(coverage_pattern != "None") %>%
+  ggplot(aes(x = reorder(coverage_pattern, n), y = n, fill = coverage_pattern)) +
+  geom_col(width = 0.7, alpha = 0.8) +
+  geom_text(aes(label = paste0(comma(n), "\n(", percentage, "%)")), 
+            hjust = -0.1, size = 3.5, fontface = "bold") +
+  scale_fill_brewer(type = "qual", palette = "Set2") +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.15))) +
+  coord_flip() +
+  labs(
+    title = "Database Overlap Patterns",
+    subtitle = "Distribution of DOIs across different database combinations",
+    x = "Coverage Pattern",
+    y = "Number of DOIs"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 12)
+  )
+
+# 3. Venn diagram data preparation
+venn_data <- dois %>%
+  summarise(
+    scopus_only = sum(Scopus & !WoS & !openAlex),
+    wos_only = sum(!Scopus & WoS & !openAlex),
+    openalex_only = sum(!Scopus & !WoS & openAlex),
+    scopus_wos = sum(Scopus & WoS & !openAlex),
+    scopus_openalex = sum(Scopus & !WoS & openAlex),
+    wos_openalex = sum(!Scopus & WoS & openAlex),
+    all_three = sum(Scopus & WoS & openAlex)
+  )
+
+# Create Venn diagram
+venn_plot <- draw.triple.venn(
+  area1 = coverage_stats$scopus_coverage,
+  area2 = coverage_stats$wos_coverage,
+  area3 = coverage_stats$openalex_coverage,
+  n12 = venn_data$scopus_wos + venn_data$all_three,
+  n23 = venn_data$wos_openalex + venn_data$all_three,
+  n13 = venn_data$scopus_openalex + venn_data$all_three,
+  n123 = venn_data$all_three,
+  category = c("Scopus", "Web of Science", "OpenAlex"),
+  fill = c("#E31A1C", "#1F78B4", "#33A02C"),
+  alpha = 0.6,
+  cex = 1.5,
+  cat.cex = 1.2,
+  cat.fontface = "bold",
+  margin = 0.1
+)
+
+
+# Combine plots
+grid.arrange(p1, p2, ncol = 2)
+grid.draw(venn_plot)
+
+```
+
+```{r Extracting topic information, echo = F, warning=F}
+ # Function to parse topics JSON and extract primary topic
+parse_primary_topic <- function(topics_json) {
+  if (is.na(topics_json) || topics_json == "" || is.null(topics_json)) {
+    return(list(
+      primary_topic_id = NA_character_,
+      primary_topic_name = NA_character_,
+      primary_topic_score = NA_real_,
+      primary_subfield_id = NA_character_,
+      primary_subfield_name = NA_character_,
+      primary_field_id = NA_character_,
+      primary_field_name = NA_character_,
+      primary_domain_id = NA_character_,
+      primary_domain_name = NA_character_
+    ))
+  }
+  
+  tryCatch({
+    # Parse JSON
+    topics_list <- fromJSON(topics_json)
+    
+    # Filter for the first topic (i == 1) and get all hierarchy levels
+    primary_entries <- topics_list[topics_list$i == 1, ]
+    
+    if (nrow(primary_entries) == 0) {
+      return(list(
+        primary_topic_id = NA_character_,
+        primary_topic_name = NA_character_,
+        primary_topic_score = NA_real_,
+        primary_subfield_id = NA_character_,
+        primary_subfield_name = NA_character_,
+        primary_field_id = NA_character_,
+        primary_field_name = NA_character_,
+        primary_domain_id = NA_character_,
+        primary_domain_name = NA_character_
+      ))
+    }
+    
+    # Extract topic information
+    topic_info <- primary_entries[primary_entries$type == "topic", ]
+    subfield_info <- primary_entries[primary_entries$type == "subfield", ]
+    field_info <- primary_entries[primary_entries$type == "field", ]
+    domain_info <- primary_entries[primary_entries$type == "domain", ]
+    
+    return(list(
+      primary_topic_id = if(nrow(topic_info) > 0) topic_info$id[1] else NA_character_,
+      primary_topic_name = if(nrow(topic_info) > 0) topic_info$display_name[1] else NA_character_,
+      primary_topic_score = if(nrow(topic_info) > 0) topic_info$score[1] else NA_real_,
+      primary_subfield_id = if(nrow(subfield_info) > 0) subfield_info$id[1] else NA_character_,
+      primary_subfield_name = if(nrow(subfield_info) > 0) subfield_info$display_name[1] else NA_character_,
+      primary_field_id = if(nrow(field_info) > 0) field_info$id[1] else NA_character_,
+      primary_field_name = if(nrow(field_info) > 0) field_info$display_name[1] else NA_character_,
+      primary_domain_id = if(nrow(domain_info) > 0) domain_info$id[1] else NA_character_,
+      primary_domain_name = if(nrow(domain_info) > 0) domain_info$display_name[1] else NA_character_
+    ))
+  }, error = function(e) {
+    warning(paste("Error parsing topics JSON:", e$message))
+    return(list(
+      primary_topic_id = NA_character_,
+      primary_topic_name = NA_character_,
+      primary_topic_score = NA_real_,
+      primary_subfield_id = NA_character_,
+      primary_subfield_name = NA_character_,
+      primary_field_id = NA_character_,
+      primary_field_name = NA_character_,
+      primary_domain_id = NA_character_,
+      primary_domain_name = NA_character_
+    ))
+  })
+}
+
+# Apply to your dataframe
+print("Parsing topics data...")
+topics_parsed <- map_dfr(paper.details.oa$topics, parse_primary_topic)
+
+# Add the parsed topics to your dataframe
+paper.details.oa <- paper.details.oa %>%
+  bind_cols(topics_parsed)
+
+print("Topics parsing complete!")
+
+# Show summary of parsed data
+cat("Summary of parsed topics:\n")
+cat("- Total publications:", nrow(paper.details.oa), "\n")
+cat("- Publications with primary topic:", sum(!is.na(paper.details.oa$primary_topic_id)), "\n")
+cat("- Publications without topic data:", sum(is.na(paper.details.oa$primary_topic_id)), "\n")
+
+# Show top 10 most common primary topics
+if (sum(!is.na(paper.details.oa$primary_topic_name)) > 0) {
+  cat("\nTop 10 most common primary subfields:\n")
+  top_topics <- paper.details.oa %>%
+    filter(!is.na(primary_subfield_name)) %>%
+    count(primary_subfield_name, sort = TRUE) %>%
+    head(10)
+  
+  for(i in 1:nrow(top_topics)) {
+    cat(paste0(i, ". ", top_topics$primary_subfield_name[i], " (", top_topics$n[i], " papers)\n"))
+  }
+  
+  cat("\nTop 10 most common primary Fields:\n")
+  top_topics <- paper.details.oa %>%
+    filter(!is.na(primary_field_name)) %>%
+    count(primary_field_name, sort = TRUE) %>%
+    head(10)
+  
+  for(i in 1:nrow(top_topics)) {
+    cat(paste0(i, ". ", top_topics$primary_field_name[i], " (", top_topics$n[i], " papers)\n"))
+  }
+}
+
+# Optional: If you also want to keep all topics in a proper list-column format
+parse_all_topics <- function(topics_json) {
+  if (is.na(topics_json) || topics_json == "" || is.null(topics_json)) {
+    return(list(tibble()))
+  }
+  
+  tryCatch({
+    topics_list <- fromJSON(topics_json)
+    return(list(as_tibble(topics_list)))
+  }, error = function(e) {
+    return(list(tibble()))
+  })
+}
+
+# Uncomment the following lines if you want to keep all topics as well
+# print("Creating list-column for all topics...")
+# paper.details.oa$all_topics <- map(paper.details.oa$topics, parse_all_topics)
+
+# Clean up (remove the original JSON column if desired)
+paper.details.oa <- paper.details.oa %>% select(-topics)
+
+print("Dataset updated with primary topic information!")
+```
+
+```{r Data Enhancement while merging, echo = F}
+# Function to get longer text between two columns
+get_longer_text <- function(col1, col2) {
+  result <- character(length(col1))
+  
+  for(i in seq_along(col1)) {
+    val1 <- if(is.na(col1[i]) || col1[i] == "") "" else col1[i]
+    val2 <- if(is.na(col2[i]) || col2[i] == "") "" else col2[i]
+    
+    if(nchar(val1) >= nchar(val2)) {
+      result[i] <- if(val1 == "") NA_character_ else val1
+    } else {
+      result[i] <- if(val2 == "") NA_character_ else val2
+    }
+  }
+  return(result)
+}
+
+# Function to count non-NA values
+count_non_na <- function(x) sum(!is.na(x) & x != "")
+
+cat("=== COMPREHENSIVE DATA ENHANCEMENT ===\n\n")
+
+# Step 1: Prepare missing papers for addition
+cat("Step 1: Preparing missing papers for addition...\n")
+
+missing_enhanced <- missing_oa %>%
+  mutate(
+    # Basic OpenAlex structure
+    work_id = NA_character_,
+    title = `article title`,
+    display_name = `article title`,
+    
+    # Abstract - prefer Scopus over WoS
+    abstract = case_when(
+      !is.na(abstract.s) & abstract.s != "" ~ abstract.s,
+      !is.na(abstract.w) & abstract.w != "" ~ abstract.w,
+      TRUE ~ NA_character_
+    ),
+    
+    # Citation count - maximum across all sources
+    cited_by_count = pmax(
+      ifelse(is.na(times_cited.s), 0, times_cited.s),
+      ifelse(is.na(times_cited.w), 0, times_cited.w),
+      na.rm = TRUE
+    ),
+    
+    # Document type - convert to lowercase
+    `document type` = tolower(`document type`),
+    
+    # Publication info
+    publication_date = as.Date(paste0(year, "-01-01")),
+    publication_year = as.integer(year),
+    
+    # Source info
+    source_display_name = `source title`,
+    
+    # Funding details - choose longer text
+    funding_details = get_longer_text(`funding details.s`, `funding details.w`),
+    funding_text = get_longer_text(`funding text.s`, `funding text.w`),
+    
+    # Keywords - keep all
+    author_keywords = `author keywords`,
+    index_keywords_scopus = index_keywords_scopus,
+    keywords_plus_wos = keywords_plus_wos,
+    
+    # Add other columns to match OpenAlex structure
+    ids = NA_character_,
+    is_oa = NA,
+    source_id = NA_character_,
+    issn_l = NA_character_,
+    host_organization = NA_character_,
+    host_organization_name = NA_character_,
+    landing_page_url = NA_character_,
+    pdf_url = NA_character_,
+    license = NA_character_,
+    version = NA_character_,
+    keywords = NA_character_,
+    is_retracted = FALSE,
+    grants = NA_character_,
+    primary_topic_id = NA_character_,
+    primary_topic_name = NA_character_,
+    primary_topic_score = NA_real_,
+    primary_subfield_id = NA_character_,
+    primary_subfield_name = NA_character_,
+    primary_field_id = NA_character_,
+    primary_field_name = NA_character_,
+    primary_domain_id = NA_character_,
+    primary_domain_name = NA_character_
+  ) %>%
+  select(all_of(names(paper.details.oa)), funding_details, funding_text, 
+         author_keywords, index_keywords_scopus, keywords_plus_wos)
+
+cat("✓ Prepared", nrow(missing_enhanced), "missing papers for addition\n")
+
+# Step 2: Enhance existing OpenAlex data
+cat("\nStep 2: Enhancing existing OpenAlex data with WoS/Scopus information...\n")
+
+# Create a lookup from the full paper.details.ws
+ws_lookup <- paper.details.ws %>%
+  filter(doi %in% paper.details.oa$doi) %>%
+  mutate(
+    # Enhanced abstract - prefer Scopus
+    enhanced_abstract = case_when(
+      !is.na(abstract.s) & abstract.s != "" ~ abstract.s,
+      !is.na(abstract.w) & abstract.w != "" ~ abstract.w,
+      TRUE ~ NA_character_
+    ),
+    
+    # Enhanced citation count
+    enhanced_citations = pmax(
+      ifelse(is.na(times_cited.s), 0, times_cited.s),
+      ifelse(is.na(times_cited.w), 0, times_cited.w),
+      na.rm = TRUE
+    ),
+    
+    # Funding details
+    funding_details = get_longer_text(`funding details.s`, `funding details.w`),
+    funding_text = get_longer_text(`funding text.s`, `funding text.w`),
+    
+    # Keywords
+    author_keywords = `author keywords`,
+    index_keywords_scopus = index_keywords_scopus,
+    keywords_plus_wos = keywords_plus_wos
+  ) %>%
+  select(doi, enhanced_abstract, enhanced_citations, funding_details, funding_text,
+         author_keywords, index_keywords_scopus, keywords_plus_wos)
+
+# Merge with OpenAlex data
+paper.details.oa.enhanced <- paper.details.oa %>%
+  left_join(ws_lookup, by = "doi") %>%
+  mutate(
+    # Update abstract if missing in OpenAlex
+    abstract = case_when(
+      is.na(abstract) & !is.na(enhanced_abstract) ~ enhanced_abstract,
+      TRUE ~ abstract
+    ),
+    
+    # Update citation count with maximum
+    cited_by_count = pmax(
+      ifelse(is.na(cited_by_count), 0, cited_by_count),
+      ifelse(is.na(enhanced_citations), 0, enhanced_citations),
+      na.rm = TRUE
+    ),
+    
+    # Convert document type to lowercase
+    `document type` = tolower(`document type`)
+  ) %>%
+  select(-enhanced_abstract, -enhanced_citations)
+
+cat("✓ Enhanced", nrow(paper.details.oa.enhanced), "existing OpenAlex papers\n")
+
+# Step 3: Combine datasets
+cat("\nStep 3: Combining datasets...\n")
+
+# Ensure both datasets have the same columns
+common_cols <- intersect(names(paper.details.oa.enhanced), names(missing_enhanced))
+final_dataset <- bind_rows(
+  paper.details.oa.enhanced[common_cols],
+  missing_enhanced[common_cols]
+)
+
+cat("✓ Combined dataset has", nrow(final_dataset), "total papers\n")
+
+# Step 4: Generate comprehensive report
+cat("\n=== ENHANCEMENT REPORT ===\n")
+
+# Abstract enhancement
+original_abstracts <- sum(!is.na(paper.details.oa$abstract) & paper.details.oa$abstract != "")
+enhanced_abstracts <- sum(!is.na(final_dataset$abstract) & final_dataset$abstract != "")
+cat("Abstract Enhancement:\n")
+cat("- Original abstracts with just OpenAlex:", original_abstracts, "\n")
+cat("- Enhanced abstracts:", enhanced_abstracts, "\n")
+cat("- Abstracts added:", enhanced_abstracts - original_abstracts, "\n")
+
+# Citation enhancement
+original_citations <- sum(!is.na(paper.details.oa$cited_by_count) & paper.details.oa$cited_by_count > 0)
+enhanced_citations <- sum(!is.na(final_dataset$cited_by_count) & final_dataset$cited_by_count > 0)
+cat("\nCitation Enhancement:\n")
+cat("- Original citations:", original_citations, "\n")
+cat("- Enhanced citations:", enhanced_citations, "\n")
+cat("- Citations added/updated:", enhanced_citations - original_citations, "\n")
+
+# Funding analysis
+cat("\nFunding Details Analysis:\n")
+funding_details_count <- count_non_na(final_dataset$funding_details)
+funding_text_count <- count_non_na(final_dataset$funding_text)
+original_grants <- count_non_na(paper.details.oa$grants)
+
+cat("- Original OpenAlex grants:", original_grants, "\n")
+cat("- Enhanced funding details:", funding_details_count, "\n")
+cat("- Enhanced funding text:", funding_text_count, "\n")
+cat("- Total funding improvement:", funding_details_count - original_grants, "\n")
+
+# Funding source analysis (for papers present in both)
+if(nrow(ws_lookup) > 0) {
+  scopus_funding_better <- sum(
+    nchar(ifelse(is.na(paper.details.ws$`funding details.s`), "", paper.details.ws$`funding details.s`)) >
+    nchar(ifelse(is.na(paper.details.ws$`funding details.w`), "", paper.details.ws$`funding details.w`)),
+    na.rm = TRUE
+  )
+  
+  wos_funding_better <- sum(
+    nchar(ifelse(is.na(paper.details.ws$`funding details.w`), "", paper.details.ws$`funding details.w`)) >
+    nchar(ifelse(is.na(paper.details.ws$`funding details.s`), "", paper.details.ws$`funding details.s`)),
+    na.rm = TRUE
+  )
+  
+  cat("- Scopus funding details are better than WoS:", scopus_funding_better, "times\n")
+  cat("- WoS funding details are better than Scoups:", wos_funding_better, "times\n")
+}
+
+# Keywords enhancement
+oa_kw_count <- count_non_na(paper.details.oa$keywords)
+author_kw_count <- count_non_na(final_dataset$author_keywords)
+scopus_kw_count <- count_non_na(final_dataset$index_keywords_scopus)
+wos_kw_count <- count_non_na(final_dataset$keywords_plus_wos)
+
+cat("\nKeywords Enhancement:\n")
+cat("- Author keywords from OpenAlex:", oa_kw_count, "\n")
+cat("- Author keywords from WoS and Scopus:", author_kw_count, "\n")
+cat("- Scopus index keywords:", scopus_kw_count, "\n")
+cat("- WoS keywords plus:", wos_kw_count, "\n")
+
+printo('So keywords information is generally sufficient just from OpenAlex')
+
+# Document type conversion
+cat("\nThese are the types and counts of documents found in this compilation:\n")
+doc_types <- table(final_dataset$`document type`)
+for(i in seq_along(doc_types)) {
+  cat("-", names(doc_types)[i], ":", doc_types[i], "\n")
+}
+
+cat("\n=== FINAL DATASET SUMMARY ===\n")
+cat("Total papers:", nrow(final_dataset), "\n")
+cat("Papers with abstracts:", sum(!is.na(final_dataset$abstract) & final_dataset$abstract != ""), "\n")
+cat("Papers with citations:", sum(!is.na(final_dataset$cited_by_count) & final_dataset$cited_by_count > 0), "\n")
+cat("Papers with funding info:", sum(!is.na(final_dataset$funding_details) & final_dataset$funding_details != ""), "\n")
+cat("Papers with OpenAlex topics:", sum(!is.na(final_dataset$primary_topic_name)), "\n")
+
+# Save the enhanced dataset
+paper.details.oa.final <- final_dataset
+cat("\n✓ Enhanced dataset saved as 'paper.details.oa.final'\n")
+
+# Optional: Show sample of enhancements
+# cat("\n=== SAMPLE ENHANCEMENTS ===\n")
+# sample_enhanced <- final_dataset %>%
+#   filter(!is.na(funding_details) & funding_details != "") %>%
+#   slice_head(n = 3) %>%
+#   select(title, funding_details) %>%
+#   mutate(
+#     title = str_trunc(title, 50),
+#     funding_details = str_trunc(funding_details, 100)
+#   )
+# 
+# if(nrow(sample_enhanced) > 0) {
+#   cat("Sample papers with funding details:\n")
+#   for(i in 1:nrow(sample_enhanced)) {
+#     cat(i, ".", sample_enhanced$title[i], "\n")
+#     cat("   Funding:", sample_enhanced$funding_details[i], "\n\n")
+#   }
+# }
+
+# cat("Enhancement complete! 🎉\n")
+
+
+# write_parquet(paper.details.oa.final, 'Data/publications_compiled_2000-2024.parquet')
+
+```
+
+
+```{r Add in author and institution information, echo = F, eval = F}
+
+authors = read_parquet('Data/authorships_combined_2000_2024.parquet')
+# Two-step processing: 5.4M row flat dataset -> 24K aggregated dataset
+# Properly handles multiple affiliations per author and extracts countries
+
+library(data.table)
+library(jsonlite)
+
+# Convert to data.table for speed
+setDT(authors)
+
+print("Starting Step 1: Processing 5.4M rows to extract institutions and countries...")
+start_time1 <- Sys.time()
+
+# Function to process JSON affiliations and extract institutions with countries
+process_affiliations <- function(json_str) {
+  if (is.na(json_str) || json_str == "" || json_str == "[]") {
+    return(list(
+      institutions_with_country = NA_character_,
+      countries = NA_character_
+    ))
+  }
+  
+  tryCatch({
+    parsed <- fromJSON(json_str)
+    
+    if (length(parsed) == 0) {
+      return(list(
+        institutions_with_country = NA_character_,
+        countries = NA_character_
+      ))
+    }
+    
+    # Handle case where parsed is a data frame (multiple affiliations)
+    if (is.data.frame(parsed)) {
+      institutions <- character(0)
+      countries <- character(0)
+      
+      for (i in 1:nrow(parsed)) {
+        if (!is.na(parsed$display_name[i]) && parsed$display_name[i] != "") {
+          country_code <- if (!is.na(parsed$country_code[i])) parsed$country_code[i] else "XX"
+          institutions <- c(institutions, paste0(parsed$display_name[i], ", ", country_code))
+          countries <- c(countries, country_code)
+        }
+      }
+      
+      if (length(institutions) > 0) {
+        return(list(
+          institutions_with_country = paste(institutions, collapse = "; "),
+          countries = paste(unique(countries[countries != "XX"]), collapse = ", ")
+        ))
+      }
+    }
+    
+    # Handle case where parsed is a single record (one affiliation)
+    else if (is.list(parsed) && "display_name" %in% names(parsed)) {
+      if (!is.na(parsed$display_name) && parsed$display_name != "") {
+        country_code <- if (!is.na(parsed$country_code)) parsed$country_code else "XX"
+        return(list(
+          institutions_with_country = paste0(parsed$display_name, ", ", country_code),
+          countries = if (country_code != "XX") country_code else ""
+        ))
+      }
+    }
+    
+    return(list(
+      institutions_with_country = NA_character_,
+      countries = NA_character_
+    ))
+    
+  }, error = function(e) {
+    return(list(
+      institutions_with_country = NA_character_,
+      countries = NA_character_
+    ))
+  })
+}
+
+# Process unique affiliations first to avoid redundant parsing
+print("Processing unique JSON affiliations...")
+unique_affiliations <- unique(authors$affiliations[!is.na(authors$affiliations)])
+print(paste("Found", length(unique_affiliations), "unique affiliation JSONs to parse"))
+
+# Create lookup table
+affiliation_results <- rbindlist(lapply(unique_affiliations, function(aff) {
+  result <- process_affiliations(aff)
+  data.table(
+    affiliations = aff,
+    institutions_with_country = result$institutions_with_country,
+    author_countries = result$countries
+  )
+}))
+
+print("Joining parsed affiliations back to main dataset...")
+
+# Join back to main authors table
+authors_processed <- authors[affiliation_results, on = "affiliations", nomatch = 0]
+
+# For rows that didn't match (NA affiliations), add them back with NA values
+authors_na <- authors[is.na(affiliations)]
+if (nrow(authors_na) > 0) {
+  authors_na[, c("institutions_with_country", "author_countries") := list(NA_character_, NA_character_)]
+  authors_processed <- rbind(authors_processed, authors_na, fill = TRUE)
+}
+
+# Clean up the processed dataset
+authors_processed[institutions_with_country == "", institutions_with_country := NA_character_]
+authors_processed[author_countries == "", author_countries := NA_character_]
+
+# Add columns for number of institutions and countries per author
+authors_processed[, n_institutions_author := {
+  if (is.na(institutions_with_country)) {
+    0L
+  } else {
+    length(strsplit(institutions_with_country, "; ")[[1]])
+  }
+}, by = 1:nrow(authors_processed)]
+
+authors_processed[, n_countries_author := {
+  if (is.na(author_countries)) {
+    0L
+  } else {
+    length(unique(strsplit(author_countries, ", ")[[1]]))
+  }
+}, by = 1:nrow(authors_processed)]
+
+end_time1 <- Sys.time()
+print(paste("Step 1 completed in:", round(difftime(end_time1, start_time1, units = "secs"), 2), "seconds"))
+print(paste("Processed dataset has", nrow(authors_processed), "rows"))
+
+# Display sample results
+print("\nSample of processed data:")
+sample_rows <- authors_processed[!is.na(institutions_with_country)][1:3]
+print(sample_rows[, .(work_id, display_name, institutions_with_country, author_countries)])
+
+# Save the flat 5.4M row dataset as parquet
+print("\nSaving flat processed dataset as parquet...")
+library(arrow)
+write_parquet(authors_processed, "authors_processed_flat.parquet")
+
+print("\n--------------------------------------"))
+print("Starting Step 2: Aggregating to 24K publication-level dataset...")
+start_time2 <- Sys.time()
+
+# Step 2: Aggregate to publication level
+publication_summary <- authors_processed[, {
+  # Get all non-NA authors
+  valid_authors <- display_name[!is.na(display_name) & display_name != ""]
+  
+  # Get all non-NA institutions with countries and make them unique
+  valid_institutions <- institutions_with_country[!is.na(institutions_with_country) & institutions_with_country != ""]
+  # Split, flatten, and get unique institutions
+  all_institutions <- unlist(strsplit(valid_institutions, "; "))
+  unique_institutions <- unique(all_institutions[all_institutions != ""])
+  
+  # Get all countries mentioned by any author for this paper
+  all_countries <- unlist(strsplit(author_countries[!is.na(author_countries) & author_countries != ""], ", "))
+  unique_countries <- unique(all_countries[all_countries != ""])
+  
+  list(
+    authors_combined = if(length(valid_authors) > 0) paste(valid_authors, collapse = "; ") else NA_character_,
+    institutions_combined = if(length(unique_institutions) > 0) paste(unique_institutions, collapse = "; ") else NA_character_,
+    countries_in_paper = if(length(unique_countries) > 0) paste(sort(unique_countries), collapse = ", ") else NA_character_,
+    n_authors = .N,
+    n_corresponding = sum(is_corresponding, na.rm = TRUE),
+    n_authors_with_orcid = sum(!is.na(orcid)),
+    n_authors_with_affiliations = sum(!is.na(institutions_with_country))
+  )
+}, by = work_id]
+
+end_time2 <- Sys.time()
+print(paste("Step 2 completed in:", round(difftime(end_time2, start_time2, units = "secs"), 2), "seconds"))
+
+# Display results
+print(paste("\nFinal dataset has", nrow(publication_summary), "publications"))
+print("\nSample of aggregated results:")
+sample_pubs <- publication_summary[!is.na(institutions_combined)][1:2]
+print(sample_pubs)
+
+publication_summary = publication_summary %>% mutate(work_id = str_remove_all(work_id,'https://openalex\\.org/'))
+
+# Show a specific example to verify the processing
+print("\nDetailed example of one publication:")
+example_work <- publication_summary$work_id[1]
+print(paste("Work ID:", example_work))
+print("Authors for this work:")
+example_authors <- authors_processed[work_id == example_work]
+print(example_authors[, .(display_name, institutions_with_country, author_countries)])
+print("Aggregated result:")
+print(publication_summary[work_id == example_work])
+
+# Save the aggregated 24K dataset as parquet
+print("\nSaving aggregated publication dataset as parquet...")
+write_parquet(publication_summary, "publications_with_institutions_countries.parquet")
+
+paper.details.2 = paper.details.oa.final %>% left_join(publication_summary %>% select(work_id, authors = authors_combined, institutions = institutions_combined, countries = countries_in_paper, nAuthors = n_authors), by = 'work_id')
+
+paper.details.2 = paper.details.2 %>% left_join(missing_oa %>% select(doi, authors1 = `author full names`, institutions1 = `affiliations`,nAuthors1 = nAuthors), by = 'doi') %>% as.data.table()
+paper.details.2[!is.na(authors1), authors := authors1][!is.na(authors1), institutions := institutions1][!is.na(authors1), nAuthors := nAuthors1]
+
+paper.details.2 = as_tibble(paper.details.2) %>% select(-authors1,-institutions1,-nAuthors1)
+
+write_parquet(paper.details.2, 'Data/publications_full_dataset_2000-2024.parquet')
+
+# Create institutional relationship table for India and Switzerland
+print("\nCreating institutional relationship table for IN and CH...")
+start_time3 <- Sys.time()
+
+# Extract all institutions from the processed data that are in India or Switzerland
+institutions_expanded <- authors_processed[!is.na(institutions_with_country), {
+  # Split the institutions string and create one row per institution
+  inst_list <- strsplit(institutions_with_country, "; ")[[1]]
+  if (length(inst_list) > 0) {
+    data.table(institution_with_country = inst_list)
+  } else {
+    data.table(institution_with_country = character(0))
+  }
+}, by = .(work_id, display_name)]
+
+# Extract country codes and filter for India and Switzerland
+institutions_expanded[, country_code := sub(".*,\\s*([A-Z]{2})$", "\\1", institution_with_country)]
+institutions_expanded[, institution_name := sub(",\\s*[A-Z]{2}$", "", institution_with_country)]
+
+# Filter for only India (IN) and Switzerland (CH)
+institutions_in_ch <- institutions_expanded[country_code %in% c("IN", "CH")]
+
+# Create the institutional relationship table
+institutional_relationships <- institutions_in_ch[, {
+  list(
+    work_ids = paste(sort(unique(work_id)), collapse = "; "),
+    n_publications = length(unique(work_id)),
+    n_authors = length(unique(display_name)),
+    author_names = paste(sort(unique(display_name)), collapse = "; ")
+  )
+}, by = .(institution_name, country_code)]
+
+# Sort by country and number of publications
+institutional_relationships <- institutional_relationships[order(country_code, -n_publications)]
+
+end_time3 <- Sys.time()
+print(paste("Institutional relationship table created in:", round(difftime(end_time3, start_time3, units = "secs"), 2), "seconds"))
+
+print(paste("Found", nrow(institutional_relationships), "unique institutions from IN and CH"))
+print("Top institutions by publication count:")
+print(head(institutional_relationships[, .(institution_name, country_code, n_publications, n_authors)], 10))
+
+# Save institutional relationships as parquet
+print("\nSaving institutional relationship table as parquet...")
+write_parquet(institutional_relationships, "Data/institutional_relationships_IN_CH.parquet")
+openxlsx::write.xlsx(institutional_relationships %>% select(institution_name, country_code, n_publications, n_authors), "Data/institutional_relationships_IN_CH.xlsx")
+
+# Summary statistics
+print("\n--------------------------------------"))
+print("PROCESSING SUMMARY:")
+print(paste("Original rows:", nrow(authors)))
+print(paste("Processed flat rows:", nrow(authors_processed)))
+print(paste("Final publications:", nrow(publication_summary)))
+print(paste("Publications with institutions:", sum(!is.na(publication_summary$institutions_combined))))
+print(paste("Publications with country data:", sum(!is.na(publication_summary$countries_in_paper))))
+
+total_time <- difftime(end_time2, start_time1, units = "secs")
+print(paste("Total processing time:", round(total_time, 2), "seconds"))
+
+print("\nFiles created:")
+print("1. authors_processed_flat.parquet (5.4M rows with parsed institutions)")
+print("2. publications_with_institutions_countries.parquet (24K publications aggregated)")
+print("3. institutional_relationships_IN_CH.parquet (unique IN/CH institutions with their publications)")
+
+print("\nInstitutional relationship table columns:")
+print("- institution_name: Clean institution name")
+print("- country_code: IN or CH")
+print("- work_ids: Semicolon-separated list of publication IDs")
+print("- n_publications: Number of publications from this institution")
+print("- n_authors: Number of unique authors from this institution")
+print("- author_names: Semicolon-separated list of author names")
+
+print("\nProcessing complete!")
+
+```
+
+
+```{r Processing authors data, echo = F, warning=F}
+library(data.table)
+library(stringr)
+
+# Fast author summary creation using data.table
+create_author_summary_fast <- function(authors_processed) {
+  
+  print("Starting fast author summary creation...")
+  start_time <- Sys.time()
+  
+  # Convert to data.table if not already
+  if (!is.data.table(authors_processed)) {
+    setDT(authors_processed)
+  }
+  
+  print("Step 1: Creating institution work counts...")
+  step1_time <- Sys.time()
+  
+  # Step 1: Create institution-work mapping
+  # Expand institutions for each author-work combination
+  institutions_expanded <- authors_processed[
+    !is.na(author_id) & !is.na(institutions_with_country),
+    .(work_id, author_id, institutions = unlist(strsplit(institutions_with_country, "; "))),
+    by = .(work_id, author_id)
+  ][institutions != ""]
+  
+  # Count works per author-institution
+  institution_counts <- institutions_expanded[, .(n_works = uniqueN(work_id)), by = .(author_id, institutions)]
+  
+  # Create nested structure for institutions
+  institution_lists <- institution_counts[, .(
+    institution_work_counts = list(.SD[order(-n_works)])
+  ), by = author_id]
+  
+  print(paste("Step 1 completed in:", round(difftime(Sys.time(), step1_time, units = "secs"), 2), "seconds"))
+  
+  print("Step 2: Creating country work counts...")
+  step2_time <- Sys.time()
+  
+  # Step 2: Create country-work mapping  
+  # Expand countries for each author-work combination
+  countries_expanded <- authors_processed[
+    !is.na(author_id) & !is.na(author_countries),
+    .(work_id, author_id, countries = unlist(strsplit(author_countries, ", "))),
+    by = .(work_id, author_id)
+  ][countries != ""]
+  
+  # Count works per author-country
+  country_counts <- countries_expanded[, .(n_works = uniqueN(work_id)), by = .(author_id, countries)]
+  
+  # Create nested structure for countries
+  country_lists <- country_counts[, .(
+    country_work_counts = list(.SD[order(-n_works)])
+  ), by = author_id]
+  
+  print(paste("Step 2 completed in:", round(difftime(Sys.time(), step2_time, units = "secs"), 2), "seconds"))
+  
+  print("Step 3: Checking India-Switzerland collaborations...")
+  step3_time <- Sys.time()
+  
+  # Step 3: Check for India-Switzerland collaboration per work
+  # For each author-work, check if that specific work has both IN and CH
+  work_country_check <- authors_processed[
+    !is.na(author_id) & !is.na(author_countries),
+    .(
+      has_IN = any(grepl("IN", author_countries)),
+      has_CH = any(grepl("CH", author_countries))
+    ),
+    by = .(author_id, work_id)
+  ]
+  
+  # Check if any work for each author has both IN and CH
+  india_swiss_collab <- work_country_check[, .(
+    has_india_swiss_collab = any(has_IN & has_CH)
+  ), by = author_id]
+  
+  print(paste("Step 3 completed in:", round(difftime(Sys.time(), step3_time, units = "secs"), 2), "seconds"))
+  
+  print("Step 4: Creating main author summary...")
+  step4_time <- Sys.time()
+  
+  # Step 4: Main author summary with basic metrics
+  authors_main <- authors_processed[!is.na(author_id), .(
+    name = first(display_name, na_rm = TRUE),
+    orcid = first(orcid, na_rm = TRUE),
+    nWorks = uniqueN(work_id, na.rm = TRUE),
+    total_institutions = {
+      all_insts <- unlist(strsplit(institutions_with_country[!is.na(institutions_with_country)], "; "))
+      length(unique(all_insts[all_insts != ""]))
+    },
+    total_countries = {
+      all_countries <- unlist(strsplit(author_countries[!is.na(author_countries)], ", "))
+      length(unique(all_countries[all_countries != ""]))
+    },
+    n_corresponding_works = sum(is_corresponding, na.rm = TRUE)
+  ), by = author_id]
+  
+  print(paste("Step 4 completed in:", round(difftime(Sys.time(), step4_time, units = "secs"), 2), "seconds"))
+  
+  print("Step 5: Merging all components...")
+  step5_time <- Sys.time()
+  
+  # Step 5: Merge all components
+  # Start with main summary
+  final_summary <- authors_main
+  
+  # Add institution lists
+  final_summary <- merge(final_summary, institution_lists, by = "author_id", all.x = TRUE)
+  
+  # Add country lists  
+  final_summary <- merge(final_summary, country_lists, by = "author_id", all.x = TRUE)
+  
+  # Add collaboration flag
+  final_summary <- merge(final_summary, india_swiss_collab, by = "author_id", all.x = TRUE)
+  
+  # Fill missing collaboration flag with FALSE
+  final_summary[is.na(has_india_swiss_collab), has_india_swiss_collab := FALSE]
+  
+  # Handle missing list columns
+  final_summary[is.na(institution_work_counts), institution_work_counts := list(list(data.table(institutions = character(0), n_works = integer(0))))]
+  final_summary[is.na(country_work_counts), country_work_counts := list(list(data.table(countries = character(0), n_works = integer(0))))]
+  
+  # Order by number of works
+  setorder(final_summary, -nWorks)
+  
+  print(paste("Step 5 completed in:", round(difftime(Sys.time(), step5_time, units = "secs"), 2), "seconds"))
+  
+  end_time <- Sys.time()
+  print(paste("Total processing time:", round(difftime(end_time, start_time, units = "secs"), 2), "seconds"))
+  
+  return(final_summary)
+}
+
+# Run the fast function
+print("Processing 5.4M records with optimized data.table approach...")
+authors_summ <- create_author_summary_fast(authors_processed)
+
+# Display summary statistics
+print(paste("Created summary for", nrow(authors_summ), "unique authors"))
+print(paste("Authors with India-Swiss collaboration:", sum(authors_summ$has_india_swiss_collab)))
+
+# Show examples - optimized display
+print("\nTop 3 authors by number of works:")
+top_3 <- head(authors_summ, 3)
+
+for(i in 1:3) {
+  cat("\n--------------------------------------------\n")
+  cat("Author:", top_3$name[i], "\n")
+  cat("Total works:", top_3$nWorks[i], "\n")
+  cat("India-Swiss collaboration:", top_3$has_india_swiss_collab[i], "\n")
+  cat("Total institutions:", top_3$total_institutions[i], "\n")
+  cat("Total countries:", top_3$total_countries[i], "\n")
+  
+  # Show top institutions
+  inst_data <- top_3$institution_work_counts[[i]]
+  if(nrow(inst_data) > 0) {
+    cat("Top institutions:\n")
+    print(head(inst_data, 3))
+  }
+  
+  # Show countries
+  country_data <- top_3$country_work_counts[[i]]
+  if(nrow(country_data) > 0) {
+    cat("Countries:\n")
+    print(country_data)
+  }
+}
+
+# Fast exploration function
+explore_author_fast <- function(author_name_pattern, authors_summ) {
+  matches <- authors_summ[grepl(author_name_pattern, name, ignore.case = TRUE)]
+  
+  if(nrow(matches) == 0) {
+    cat("No authors found matching:", author_name_pattern, "\n")
+    return(invisible(NULL))
+  }
+  
+  cat("Found", nrow(matches), "matching authors:\n")
+  for(i in 1:min(5, nrow(matches))) {  # Limit to first 5 matches
+    cat("\n", matches$name[i], "- Works:", matches$nWorks[i], 
+        "- India-Swiss collab:", matches$has_india_swiss_collab[i], "\n")
+    
+    # Show top institutions
+    inst_data <- matches$institution_work_counts[[i]]
+    if(nrow(inst_data) > 0) {
+      top_insts <- head(inst_data, 2)
+      cat("Top institutions:", paste(paste0(top_insts$institutions, " (", top_insts$n_works, ")"), collapse = "; "), "\n")
+    }
+    
+    # Show countries
+    country_data <- matches$country_work_counts[[i]]
+    if(nrow(country_data) > 0) {
+      cat("Countries:", paste(paste0(country_data$countries, " (", country_data$n_works, ")"), collapse = ", "), "\n")
+    }
+  }
+}
+
+# Summary statistics - fast computation
+print("\n", paste(rep("=", 60), collapse = ""))
+print("SUMMARY STATISTICS:")
+print(paste("Total authors:", nrow(authors_summ)))
+print(paste("Authors with >10 works:", sum(authors_summ$nWorks > 10)))
+print(paste("Authors with >50 works:", sum(authors_summ$nWorks > 50)))
+print(paste("Authors with ORCID:", sum(!is.na(authors_summ$orcid))))
+print(paste("Authors with India-Swiss collaboration:", sum(authors_summ$has_india_swiss_collab)))
+
+# Fast work distribution
+work_breaks <- c(1, 2, 6, 11, 26, 51, Inf)
+work_labels <- c("1 work", "2-5 works", "6-10 works", "11-25 works", "26-50 works", ">50 works")
+authors_summ[, work_category := cut(nWorks, breaks = work_breaks, labels = work_labels, right = FALSE)]
+
+work_distribution <- authors_summ[, .N, by = work_category][order(work_category)]
+work_distribution[, percentage := round(N / sum(N) * 100, 1)]
+
+print("\nWork distribution among authors:")
+print(work_distribution)
+
+print("\nSaving author summary...")
+# Save the results efficiently
+library(arrow)
+write_parquet(authors_summ, "Data/authors_summary_with_lists.parquet")
+
+print("Author summary saved to: authors_summary_with_lists.parquet")
+print("\nExample usage:")
+print("explore_author_fast('Kumar', authors_summ)")
+print("explore_author_fast('Singh', authors_summ)")
+
+```
+

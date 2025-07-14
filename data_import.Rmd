@@ -1342,28 +1342,6 @@ write_feather(author.details,
 ```
 
 
-```{r Combine OpenAlex, Scopus and WoS data}
-
-paper.details.oa = read_feather('Data/openAlex_paper_details_flat.feather')
-
-paper.details.oa = filter(paper.details.oa,!is_retracted) %>% select(-is_retracted)
-
-paper.details.oa = paper.details.oa %>% filter(document_type %in% c('article','book','book-chapter','dataset','letter','reference-entry','report','review', 'editorial')) %>% ungroup() %>%
-  mutate(doi = tolower(str_remove(doi,"https://doi.org/"))) %>%
-  select(-pubNum) %>% rename(publication_year = year)
-
-paper.details.ws = readRDS(file = 'Data/publication_details.RData')
-
-paper.details.ws = paper.details.ws %>% filter((grepl('(Article|Review|Book)',`document type`) | `document type` %in% c('Conference paper','Data paper','Proceedings Paper', 'Review', 'Short survey','Editorial')) & !grepl('Retract', `document type`)) %>%
-  select(-pubNum)
-
-#Combine the two datasets - paper.details.ws and paper.details.oa
-#the unique id for a paper is the DOI
-#Prefer the abstract, title, year, 
-
-```
-
-
 <!-- Chunks that are not current priorities -->
 
 
