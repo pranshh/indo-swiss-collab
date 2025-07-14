@@ -4,132 +4,105 @@ import re
 import os
 
 app = Flask(__name__)
-DATA_PATH = os.path.join("data", "publication_details.feather")
+DATA_PATH = os.path.join("data", "publications_full_dataset_2000-2024.parquet")
+INST_PATH = os.path.join("data", "institutional_relationships_IN_CH.parquet")
+
 RESULTS_PER_PAGE = 100
 
-df_publications = pd.read_feather(DATA_PATH)
+df_publications = pd.read_parquet(DATA_PATH)
+df_institutions = pd.read_parquet(INST_PATH)['institution_name'] \
+                    .dropna() \
+                    .unique() \
+                    .tolist()
+df_institutions = sorted(df_institutions)
 
-def parse_natural_query(query):
-    params = {
-        'title': '',
-        'authors': '',
-        'abstract': '',
-        'affiliations': '',
-        'doi': '',
-        'wos_categories': '',
-        'year': ''
-    }
+print("AUTHORS column sample:", df_publications['authors'].head(3), 
+      "\nType of first cell:", type(df_publications['authors'].iloc[0]))
 
-    year_match = re.search(r'\b(19|20)\d{2}\b', query)
-    if year_match:
-        params['year'] = year_match.group()
-        query = re.sub(r'\b(19|20)\d{2}\b', '', query)
-
-    if 'after' in query.lower() and params['year']:
-        params['year'] = f">={params['year']}"
-    elif 'before' in query.lower() and params['year']:
-        params['year'] = f"<={params['year']}"
-
-    # Extract institutions
-    inst_patterns = [
-        r'university of \w+',
-        r'institute of \w+',
-        r'\w+ university',
-        r'\w+ institute'
-    ]
-    for pattern in inst_patterns:
-        matches = re.finditer(pattern, query, re.IGNORECASE)
-        for match in matches:
-            params['affiliations'] += f"{match.group()} "
-            query = query.replace(match.group(), '')
-
-    # Extract topics
-    topic_indicators = ['about', 'regarding', 'on', 'related to']
-    for indicator in topic_indicators:
-        if indicator in query.lower():
-            parts = query.lower().split(indicator)
-            if len(parts) > 1:
-                params['abstract'] = parts[1].strip()
-                query = parts[0]
-
-    # Remaining text is treated as author names
-    remaining_terms = query.strip()
-    if remaining_terms:
-        params['authors'] = remaining_terms
-
-    return {k: v.strip() for k, v in params.items()}
 
 def filter_dataframe(params):
     df = df_publications.copy()
+
     if params.get('title'):
-        df = df[df['article title'].str.contains(params['title'], case=False, na=False, regex=False)]
-    if params.get('authors'):
-        mask1 = df['author full names'].str.contains(params['authors'], case=False, na=False, regex=False)
-        mask2 = df['authors'].str.contains(params['authors'], case=False, na=False, regex=False)
-        df = df[mask1 | mask2]
+        df = df[df['title'].str.contains(params['title'], case=False, na=False)]
+    
+    authors = params.get('authors', [])
+    if authors:
+        def author_match(cell):
+            if not isinstance(cell, str): return False
+            parts = [p.strip() for p in cell.split(';') if p.strip()]
+            # for *each* user-entered author, at least one part must contain it
+            return all(
+                any(author.lower() in part.lower() for part in parts)
+                for author in authors
+            )
+        df = df[df['authors'].apply(author_match)]
+
+    print("AFTER AUTHOR FILTER: ", len(df), "rows")
+
     if params.get('abstract'):
-        mask1 = df['abstract.s'].str.contains(params['abstract'], case=False, na=False, regex=False)
-        mask2 = df['abstract.w'].str.contains(params['abstract'], case=False, na=False, regex=False)
-        mask3 = df['article title'].str.contains(params['abstract'], case=False, na=False, regex=False)
-        df = df[mask1 | mask2 | mask3]
-    if params.get('affiliations'):
-        df = df[df['affiliations'].str.contains(params['affiliations'], case=False, na=False, regex=False)]
+        df = df[df['abstract'].str.contains(params['abstract'], case=False, na=False)]
+    
+    affils = params.get('affiliations', [])
+    if affils:
+        def inst_match(cell):
+            if not isinstance(cell, str): return False
+            parts = [p.strip() for p in cell.split(';') if p.strip()]
+            return all(
+                any(inst.lower() in part.lower() for part in parts)
+                for inst in affils
+            )
+        df = df[df['institutions'].apply(inst_match)]
+
+    if params.get('abstract'):
+        df = df[df['abstract'].str.contains(params['abstract'], case=False, na=False)]
+
     if params.get('year'):
         year_val = params['year']
         if 'BETWEEN' in year_val:
             parts = year_val.replace('BETWEEN', '').split('AND')
             if len(parts) == 2:
                 start, end = int(parts[0]), int(parts[1])
-                df = df[(df['year'] >= start) & (df['year'] <= end)]
+                df = df[(df['publication_year'] >= start) & (df['publication_year'] <= end)]
         elif year_val.startswith('>='):
-            df = df[df['year'] >= int(year_val[2:].strip())]
+            df = df[df['publication_year'] >= int(year_val[2:].strip())]
         elif year_val.startswith('<='):
-            df = df[df['year'] <= int(year_val[2:].strip())]
+            df = df[df['publication_year'] <= int(year_val[2:].strip())]
         else:
             try:
-                df = df[df['year'] == int(year_val)]
+                df = df[df['publication_year'] == int(year_val)]
             except ValueError:
                 pass
+
+        print("After authors filter →", len(df), "rows")
+        print("After insts filter   →", len(df), "rows")
+        
     return df
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/quick-search', methods=['POST'])
-def quick_search():
-    query = request.form.get('query', '').strip()
-    params = parse_natural_query(query)
-    df = filter_dataframe(params)
-    results_data = df.head(RESULTS_PER_PAGE).to_dict(orient='records')
-    if df.empty:
-        return render_template('results.html',
-                              query=query,
-                              results=[],
-                              message="No results found.",
-                              search_type="quick")
-    return render_template('results.html',
-                         query=query,
-                         results=results_data,
-                         total_count=len(df),
-                         current_page=1,
-                         total_pages=(len(df) + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE,
-                         search_type="quick")
+@app.route('/institutions')
+def get_institutions():
+    return {'institutions': df_institutions}
 
 @app.route('/search', methods=['POST'])
 def search():
     try:
         page = int(request.form.get('page', 1))
         params = {
-            'title': request.form.get('title', '').strip(),
-            'authors': request.form.get('authors', '').strip(),
-            'abstract': request.form.get('abstract', '').strip(),
-            'affiliations': request.form.get('affiliations', '').strip(),
-            'doi': request.form.get('doi', '').strip(),
-            'wos_categories': request.form.get('wos_categories', '').strip(),
-            'year': ''
+            # strings:
+            'title':        request.form.get('title','').strip(),
+            'abstract':     request.form.get('abstract','').strip(),
+            'doi':          request.form.get('doi','').strip(),
+            'year':         '',
+            # lists:
+            'authors':      [a.strip() for a in request.form.getlist('authors') if a.strip()],
+            'affiliations': [i.strip() for i in request.form.getlist('affiliations') if i.strip()],
         }
-        
+        print("FILTER PARAMS:", params)
+
         year_from = request.form.get('year_from', '').strip()
         year_to = request.form.get('year_to', '').strip()
         if year_from and year_to:
@@ -178,17 +151,16 @@ def search():
 @app.route('/download', methods=['POST'])
 def download():
     params = {
-        'title': request.form.get('title', '').strip(),
-        'authors': request.form.get('authors', '').strip(),
-        'abstract': request.form.get('abstract', '').strip(),
-        'affiliations': request.form.get('affiliations', '').strip(),
-        'doi': request.form.get('doi', '').strip(),
-        'wos_categories': request.form.get('wos_categories', '').strip(),
-        'year': ''
+        'title':        request.form.get('title','').strip(),
+        'abstract':     request.form.get('abstract','').strip(),
+        'doi':          request.form.get('doi','').strip(),
+        'year':         '',
+        'authors':      [a.strip() for a in request.form.getlist('authors') if a.strip()],
+        'affiliations': [i.strip() for i in request.form.getlist('affiliations') if i.strip()],
     }
-    
+
     year_from = request.form.get('year_from', '').strip()
-    year_to = request.form.get('year_to', '').strip()
+    year_to   = request.form.get('year_to',   '').strip()
     if year_from and year_to:
         params['year'] = f"BETWEEN {year_from} AND {year_to}"
     elif year_from:
@@ -197,13 +169,23 @@ def download():
         params['year'] = f"<= {year_to}"
 
     df = filter_dataframe(params)
+
+    print("DOWNLOAD: total rows =", len(df))
+
     csv_data = df.to_csv(index=False)
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     return Response(
         csv_data,
         mimetype="text/csv",
-        headers={"Content-disposition": f"attachment; filename=results_{timestamp}.csv"}
+        headers={
+            "Content-Disposition": f"attachment; filename=results_{timestamp}.csv"
+        }
     )
+
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 if __name__ == '__main__':
     app.run()
