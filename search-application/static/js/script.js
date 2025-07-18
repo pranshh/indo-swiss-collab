@@ -43,14 +43,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // --- dynamic multi-input support ---
-    document.querySelectorAll('.add-btn').forEach(btn => {
+    function attachAddButtonListener(btn) {
         btn.addEventListener('click', () => {
             const container = document.getElementById(btn.dataset.target);
             const lastInput = container.querySelector('.multi-input:last-of-type');
             const clone = lastInput.cloneNode(true);
+            
+            // Reset the cloned input
             clone.querySelector('input').value = '';
+            
+            // Get the new add button in the clone
+            const newAddBtn = clone.querySelector('.add-btn');
+            
+            // Attach event listener to the new button
+            attachAddButtonListener(newAddBtn);
+            
             container.appendChild(clone);
         });
+    }
+
+    // Attach listeners to initial buttons
+    document.querySelectorAll('.add-btn').forEach(btn => {
+        attachAddButtonListener(btn);
     });
 
     // --- About Page Enhancements ---
@@ -329,35 +343,6 @@ if (downloadBtn) {
     }
     handleTableResponsive();
     window.addEventListener('resize', handleTableResponsive);
-
-    // Highlight search terms in table
-    function highlightSearchTerms() {
-        const form = document.getElementById('searchForm');
-        const searchTerms = [];
-        if (form) {
-            const formData = new FormData(form);
-            for (let [key, value] of formData.entries()) {
-                if (value && value.trim() && key !== 'page') {
-                    searchTerms.push(value.trim().toLowerCase());
-                }
-            }
-        }
-        if (searchTerms.length > 0) {
-            const cells = document.querySelectorAll('.table-cell');
-            cells.forEach(cell => {
-                let originalText = cell.textContent;
-                let highlightedText = originalText;
-                searchTerms.forEach(term => {
-                    const regex = new RegExp(`(${term})`, 'gi');
-                    highlightedText = highlightedText.replace(regex, '<mark style="background: #fff3cd; padding: 1px 3px; border-radius: 3px;">$1</mark>');
-                });
-                if (highlightedText !== originalText) {
-                    cell.innerHTML = highlightedText;
-                }
-            });
-        }
-    }
-    highlightSearchTerms();
 
     // Lazy load row animations
     const rowObserver = new IntersectionObserver(function (entries) {
