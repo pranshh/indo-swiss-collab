@@ -25,55 +25,22 @@
             <form action="/search" method="post">
                 <!-- Main Search Bar -->
                 <div class="search-system">
-                    <div class="search-bar">
-                        <input 
-                            type="text" 
-                            class="search-input" 
-                            name="abstract"
-                            placeholder="Search the database"
-                            id="mainSearch"
-                        >
-                        <button type="submit" class="search-button">
+                    <button type="submit" class="search-bar">
+                        <span class="search-text">Search the Database</span>
+                        <div class="search-button">
                             <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/>
                             </svg>
-                        </button>
-                    </div>
+                        </div>
+                    </button>
                 </div>
-
                 <!-- Advanced Filters -->
                 <div class="advanced-filters show" id="advancedFilters">
                     <div class="filter-grid">
                         <div class="filter-group">
-                            <input type="text" class="filter-input" name="title" placeholder="Article Title">
-                            <svg class="filter-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.627 2.707-3.227V6.741c0-1.6-1.123-2.994-2.707-3.227A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.514C3.373 3.747 2.25 5.14 2.25 6.741v6.018z"/>
-                            </svg>
-                        </div>
+                            <input type="text" class="filter-input" name="title_abstract" placeholder="Title or Abstract">
+                        </div>        
                         
-                        <div id="authors-container" class="filter-group-multi">
-                            <label class="form-label">Authors</label>
-                            <div class="multi-input">
-                                <input type="text" class="filter-input" name="authors" placeholder="Author">
-                                <button type="button" class="btn btn-sm btn-outline-secondary add-btn" data-target="authors-container">+</button>
-                            </div>
-                        </div>
-                        
-                        <div id="affiliations-container" class="filter-group-multi">
-                            <label class="form-label">Institution</label>
-                            <div class="multi-input">
-                                <input type="text" class="filter-input" name="affiliations" placeholder="Institution" list="institutionList">
-                                <button type="button" class="btn btn-sm btn-outline-secondary add-btn" data-target="affiliations-container">+</button>
-                            </div>
-                        </div>
-
-                        <div class="filter-group">
-                            <input type="text" class="filter-input" name="abstract" placeholder="Abstract Keywords">
-                            <svg class="filter-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 12h10m-10 4h14"/>
-                            </svg>
-                        </div>
-
                         <div class="year-range">
                             <div class="filter-group">
                                 <input type="number" class="filter-input" name="year_from" placeholder="From Year" min="2000" max="2024">
@@ -88,6 +55,21 @@
                                 </svg>
                             </div>
                         </div>
+
+                        <div id="authors-container" class="filter-group-multi">
+                            <div class="multi-input">
+                                <input type="text" class="filter-input" name="authors" placeholder="Author">
+                                <button type="button" class="btn btn-sm btn-outline-secondary add-btn" data-target="authors-container">+</button>
+                            </div>
+                        </div>
+                        
+                        <div id="affiliations-container" class="filter-group-multi">
+                            <div class="multi-input">
+                                <input type="text" class="filter-input" name="affiliations" placeholder="Institution" list="institutionList">
+                                <button type="button" class="btn btn-sm btn-outline-secondary add-btn" data-target="affiliations-container">+</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </form>
