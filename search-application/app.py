@@ -23,8 +23,12 @@ print("AUTHORS column sample:", df_publications['authors'].head(3),
 def filter_dataframe(params):
     df = df_publications.copy()
 
-    if params.get('title'):
-        df = df[df['title'].str.contains(params['title'], case=False, na=False)]
+    if params.get('title_abstract'):
+        search_term = params['title_abstract']
+        df = df[
+            (df['title'].str.contains(search_term, case=False, na=False)) |
+            (df['abstract'].str.contains(search_term, case=False, na=False))
+        ]
     
     authors = params.get('authors', [])
     if authors:
@@ -39,9 +43,6 @@ def filter_dataframe(params):
         df = df[df['authors'].apply(author_match)]
 
     print("AFTER AUTHOR FILTER: ", len(df), "rows")
-
-    if params.get('abstract'):
-        df = df[df['abstract'].str.contains(params['abstract'], case=False, na=False)]
     
     affils = params.get('affiliations', [])
     if affils:
