@@ -109,13 +109,56 @@ html {
 
 /* Main Content - Index */
 .main-content {
-    min-height: calc(100vh - 66px - 540px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    min-height: calc(100vh - 66px);
     padding: 40px 20px;
     position: relative;
     z-index: 1;
+}
+
+.content-wrapper {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.tooltip-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    color: #b45252;
+    cursor: help;
+}
+
+.tooltip-icon i {
+    font-size: 14px;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.tooltip-icon:hover i {
+    opacity: 1;
+}
+
+/* Bootstrap tooltip customization */
+.tooltip {
+    font-family: "Times New Roman", serif;
+}
+
+.tooltip .tooltip-inner {
+    background-color: #b45252;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 14px;
+    max-width: 300px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+}
+
+.tooltip.bs-tooltip-end .tooltip-arrow::before {
+    border-right-color: #b45252;
 }
 
 .search-container {
@@ -300,7 +343,7 @@ html {
 .form-label {
     margin-bottom: 5px;
     color: #333;
-    font-weight: 500;
+    font-weight: bold;
 }
 
 .filter-input {
@@ -353,28 +396,21 @@ html {
 }
 
 .disclaimer-card {
-    background: #d3aeaa;
-    border-radius: 54px;
-    padding: 60px 40px;
-    max-width: 1200px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 40px;
+    padding: 30px;
     width: 100%;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    animation: fadeInUp 0.8s ease-out 0.2s both;
-}
-
-.disclaimer-title {
-    font-size: 28px;
-    font-weight: 400;
-    margin-bottom: 30px;
-    color: #000;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: fadeInUp 0.8s ease-out;
 }
 
 .disclaimer-text {
-    font-size: 20px;
+    font-size: 15px;
     font-weight: 400;
     line-height: 1;
-    color: #000;
+    color: #333;
     margin-bottom: 20px;
 }
 

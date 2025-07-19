@@ -1,29 +1,36 @@
 // --- Index Page Script ---
 document.addEventListener('DOMContentLoaded', function () {
-        // Institution autocomplete
-    const affiliationInput = document.querySelector('input[name="affiliations"]');
-    if (affiliationInput) {
-        const datalistId = 'institutionList';
-        let datalist = document.getElementById(datalistId);
-        if (!datalist) {
-            datalist = document.createElement('datalist');
-            datalist.id = datalistId;
-            document.body.appendChild(datalist);
-        }
-        affiliationInput.setAttribute('list', datalistId);
+    // Generic autocomplete setup function
+    function setupAutocomplete(inputSelector, endpoint, datalistId) {
+        const input = document.querySelector(inputSelector);
+        if (input) {
+            let datalist = document.getElementById(datalistId);
+            if (!datalist) {
+                datalist = document.createElement('datalist');
+                datalist.id = datalistId;
+                document.body.appendChild(datalist);
+            }
+            input.setAttribute('list', datalistId);
 
-        fetch('/institutions')
-            .then(res => res.json())
-            .then(data => {
-                const fragment = document.createDocumentFragment();
-                data.institutions.forEach(inst => {
-                    const option = document.createElement('option');
-                    option.value = inst;
-                    fragment.appendChild(option);
+            fetch(endpoint)
+                .then(res => res.json())
+                .then(data => {
+                    const fragment = document.createDocumentFragment();
+                    const items = endpoint.includes('authors') ? data.authors : data.institutions;
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item;
+                        fragment.appendChild(option);
+                    });
+                    datalist.appendChild(fragment);
                 });
-                datalist.appendChild(fragment);
-            });
+        }
     }
+
+    // Setup autocomplete for both institutions and authors
+    setupAutocomplete('input[name="affiliations"]', '/institutions', 'institutionList');
+    setupAutocomplete('input[name="authors"]', '/authors', 'authorsList');
+
     // Main search bar enhancements
     const mainSearch = document.getElementById('mainSearch');
     const form = document.querySelector('form');
@@ -42,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     
-    // --- dynamic multi-input support ---
+    // --- Dynamic multi-input support ---
     function attachAddButtonListener(btn) {
         btn.addEventListener('click', () => {
             const container = document.getElementById(btn.dataset.target);
@@ -50,12 +57,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const clone = lastInput.cloneNode(true);
             
             // Reset the cloned input
-            clone.querySelector('input').value = '';
+            const input = clone.querySelector('input');
+            input.value = '';
             
-            // Get the new add button in the clone
+            // Preserve the datalist attribute if it exists
+            const originalList = lastInput.querySelector('input').getAttribute('list');
+            if (originalList) {
+                input.setAttribute('list', originalList);
+            }
+            
+            // Get and setup the new add button
             const newAddBtn = clone.querySelector('.add-btn');
-            
-            // Attach event listener to the new button
             attachAddButtonListener(newAddBtn);
             
             container.appendChild(clone);

@@ -6,6 +6,7 @@ import os
 app = Flask(__name__)
 DATA_PATH = os.path.join("data", "publications_full_dataset_2000-2024.parquet")
 INST_PATH = os.path.join("data", "institutional_relationships_IN_CH.parquet")
+AUTH_PATH = os.path.join("data", "authors_summary_in_ch.parquet")
 
 RESULTS_PER_PAGE = 100
 
@@ -15,6 +16,10 @@ df_institutions = pd.read_parquet(INST_PATH)['institution_name'] \
                     .unique() \
                     .tolist()
 df_institutions = sorted(df_institutions)
+df_authors = pd.read_parquet(AUTH_PATH)['name']\
+                    .dropna() \
+                    .unique() \
+                    .tolist()
 
 print("AUTHORS column sample:", df_publications['authors'].head(3), 
       "\nType of first cell:", type(df_publications['authors'].iloc[0]))
@@ -87,6 +92,10 @@ def index():
 @app.route('/institutions')
 def get_institutions():
     return {'institutions': df_institutions}
+
+@app.route('/authors')
+def get_authors():
+    return {'authors': df_authors}
 
 @app.route('/search', methods=['POST'])
 def search():
