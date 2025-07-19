@@ -1,29 +1,36 @@
 // --- Index Page Script ---
 document.addEventListener('DOMContentLoaded', function () {
-        // Institution autocomplete
-    const affiliationInput = document.querySelector('input[name="affiliations"]');
-    if (affiliationInput) {
-        const datalistId = 'institutionList';
-        let datalist = document.getElementById(datalistId);
-        if (!datalist) {
-            datalist = document.createElement('datalist');
-            datalist.id = datalistId;
-            document.body.appendChild(datalist);
-        }
-        affiliationInput.setAttribute('list', datalistId);
+    // Generic autocomplete setup function
+    function setupAutocomplete(inputSelector, endpoint, datalistId) {
+        const input = document.querySelector(inputSelector);
+        if (input) {
+            let datalist = document.getElementById(datalistId);
+            if (!datalist) {
+                datalist = document.createElement('datalist');
+                datalist.id = datalistId;
+                document.body.appendChild(datalist);
+            }
+            input.setAttribute('list', datalistId);
 
-        fetch('/institutions')
-            .then(res => res.json())
-            .then(data => {
-                const fragment = document.createDocumentFragment();
-                data.institutions.forEach(inst => {
-                    const option = document.createElement('option');
-                    option.value = inst;
-                    fragment.appendChild(option);
+            fetch(endpoint)
+                .then(res => res.json())
+                .then(data => {
+                    const fragment = document.createDocumentFragment();
+                    const items = endpoint.includes('authors') ? data.authors : data.institutions;
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item;
+                        fragment.appendChild(option);
+                    });
+                    datalist.appendChild(fragment);
                 });
-                datalist.appendChild(fragment);
-            });
+        }
     }
+
+    // Setup autocomplete for both institutions and authors
+    setupAutocomplete('input[name="affiliations"]', '/institutions', 'institutionList');
+    setupAutocomplete('input[name="authors"]', '/authors', 'authorsList');
+
     // Main search bar enhancements
     const mainSearch = document.getElementById('mainSearch');
     const form = document.querySelector('form');
@@ -42,15 +49,34 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     
-    // --- dynamic multi-input support ---
-    document.querySelectorAll('.add-btn').forEach(btn => {
+    // --- Dynamic multi-input support ---
+    function attachAddButtonListener(btn) {
         btn.addEventListener('click', () => {
             const container = document.getElementById(btn.dataset.target);
             const lastInput = container.querySelector('.multi-input:last-of-type');
             const clone = lastInput.cloneNode(true);
-            clone.querySelector('input').value = '';
+            
+            // Reset the cloned input
+            const input = clone.querySelector('input');
+            input.value = '';
+            
+            // Preserve the datalist attribute if it exists
+            const originalList = lastInput.querySelector('input').getAttribute('list');
+            if (originalList) {
+                input.setAttribute('list', originalList);
+            }
+            
+            // Get and setup the new add button
+            const newAddBtn = clone.querySelector('.add-btn');
+            attachAddButtonListener(newAddBtn);
+            
             container.appendChild(clone);
         });
+    }
+
+    // Attach listeners to initial buttons
+    document.querySelectorAll('.add-btn').forEach(btn => {
+        attachAddButtonListener(btn);
     });
 
     // --- About Page Enhancements ---
@@ -329,35 +355,6 @@ if (downloadBtn) {
     }
     handleTableResponsive();
     window.addEventListener('resize', handleTableResponsive);
-
-    // Highlight search terms in table
-    function highlightSearchTerms() {
-        const form = document.getElementById('searchForm');
-        const searchTerms = [];
-        if (form) {
-            const formData = new FormData(form);
-            for (let [key, value] of formData.entries()) {
-                if (value && value.trim() && key !== 'page') {
-                    searchTerms.push(value.trim().toLowerCase());
-                }
-            }
-        }
-        if (searchTerms.length > 0) {
-            const cells = document.querySelectorAll('.table-cell');
-            cells.forEach(cell => {
-                let originalText = cell.textContent;
-                let highlightedText = originalText;
-                searchTerms.forEach(term => {
-                    const regex = new RegExp(`(${term})`, 'gi');
-                    highlightedText = highlightedText.replace(regex, '<mark style="background: #fff3cd; padding: 1px 3px; border-radius: 3px;">$1</mark>');
-                });
-                if (highlightedText !== originalText) {
-                    cell.innerHTML = highlightedText;
-                }
-            });
-        }
-    }
-    highlightSearchTerms();
 
     // Lazy load row animations
     const rowObserver = new IntersectionObserver(function (entries) {

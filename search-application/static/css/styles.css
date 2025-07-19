@@ -109,13 +109,56 @@ html {
 
 /* Main Content - Index */
 .main-content {
-    min-height: calc(100vh - 66px - 540px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    min-height: calc(100vh - 66px);
     padding: 40px 20px;
     position: relative;
     z-index: 1;
+}
+
+.content-wrapper {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.tooltip-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    color: #b45252;
+    cursor: help;
+}
+
+.tooltip-icon i {
+    font-size: 14px;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.tooltip-icon:hover i {
+    opacity: 1;
+}
+
+/* Bootstrap tooltip customization */
+.tooltip {
+    font-family: "Times New Roman", serif;
+}
+
+.tooltip .tooltip-inner {
+    background-color: #b45252;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 14px;
+    max-width: 300px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+}
+
+.tooltip.bs-tooltip-end .tooltip-arrow::before {
+    border-right-color: #b45252;
 }
 
 .search-container {
@@ -144,13 +187,41 @@ html {
     position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    padding: 0 80px;  /* Increased padding to accommodate the search icon */
+}
+
+.search-text {
+    color: #333;
+    font-size: 28px;
+    font-family: "Times New Roman", serif;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-align: center;
+    flex: 1;
+    margin: 0;
+    text-transform: capitalize;
+    position: relative;
+    right: 28px; /* Offset to account for the search icon, centers the text */
 }
 
 .search-bar:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+    background: #c99f9b;
+}
+
+.search-bar:hover .search-text {
+    color: #000;
+}
+
+.search-bar:hover .search-button {
+    background: #ffe0e0;
+    transform: scale(1.05);
 }
 
 .search-input {
@@ -179,9 +250,7 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
     transition: all 0.3s ease;
-    border: none;
 }
 
 .search-button:hover {
@@ -223,13 +292,65 @@ html {
 
 .filter-group {
     position: relative;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-group-multi {
+    margin-bottom: 15px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.multi-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    position: relative;
+    width: 100%;
+}
+
+.multi-input .filter-input {
+    flex: 1;
+}
+
+.multi-input .add-btn {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #b45252;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.multi-input .add-btn:hover {
+    background: #9d2828;
+    transform: scale(1.1);
+}
+
+.form-label {
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: bold;
 }
 
 .filter-input {
     width: 100%;
     background: #ffebeb;
     border-radius: 25px;
-    padding: 15px 50px 15px 20px;
+    padding: 15px 45px 15px 20px; /* Adjusted right padding to prevent text overlap with icon */
     border: 2px solid transparent;
     font-size: 16px;
     font-family: "Times New Roman", serif;
@@ -251,6 +372,8 @@ html {
     height: 20px;
     stroke: #666;
     stroke-width: 2;
+    pointer-events: none; /* This prevents the icon from interfering with clicks */
+    z-index: 1; /* Ensure icon stays above input field */
 }
 
 /* Year Range */
@@ -273,28 +396,21 @@ html {
 }
 
 .disclaimer-card {
-    background: #d3aeaa;
-    border-radius: 54px;
-    padding: 60px 40px;
-    max-width: 1200px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 40px;
+    padding: 30px;
     width: 100%;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    animation: fadeInUp 0.8s ease-out 0.2s both;
-}
-
-.disclaimer-title {
-    font-size: 28px;
-    font-weight: 400;
-    margin-bottom: 30px;
-    color: #000;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: fadeInUp 0.8s ease-out;
 }
 
 .disclaimer-text {
-    font-size: 20px;
+    font-size: 15px;
     font-weight: 400;
     line-height: 1;
-    color: #000;
+    color: #333;
     margin-bottom: 20px;
 }
 
