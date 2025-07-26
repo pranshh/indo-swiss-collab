@@ -434,24 +434,11 @@ html {
     position: relative;
 }
 
-/* Backdrop */
-.backdrop {
-    background: rgba(233, 122, 122, 0.45);
-    border-radius: 54px;
-    width: 90%;
-    max-width: 1634px;
-    height: auto;
-    min-height: 80vh;
-    position: absolute;
-    backdrop-filter: blur(8.9px);
-    z-index: 1;
-}
-
 /* Content Container */
 .content-container {
     position: relative;
     z-index: 2;
-    width: 90%;
+    width: 100%;
     max-width: 1400px;
     display: flex;
     flex-direction: column;
@@ -482,7 +469,7 @@ html {
 .authors-section {
     background: #fef8ec;
     border-radius: 54px;
-    padding: 20px 40px;
+    padding: 20px 0 0 0;
     width: 100%;
     max-width: 1053px;
     text-align: center;
