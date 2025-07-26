@@ -21,10 +21,6 @@ df_authors = pd.read_parquet(AUTH_PATH)['name']\
                     .unique() \
                     .tolist()
 
-print("AUTHORS column sample:", df_publications['authors'].head(3), 
-      "\nType of first cell:", type(df_publications['authors'].iloc[0]))
-
-
 def filter_dataframe(params):
     df = df_publications.copy()
 
@@ -80,9 +76,6 @@ def filter_dataframe(params):
             except ValueError:
                 pass
 
-        print("After authors filter →", len(df), "rows")
-        print("After insts filter   →", len(df), "rows")
-        
     return df
 
 @app.route('/')
@@ -110,6 +103,7 @@ def search():
             # lists:
             'authors':      [a.strip() for a in request.form.getlist('authors') if a.strip()],
             'affiliations': [i.strip() for i in request.form.getlist('affiliations') if i.strip()],
+            'journal':       request.form.get('source_display_name','').strip(),
         }
         print("FILTER PARAMS:", params)
 
@@ -167,6 +161,7 @@ def download():
         'year':         '',
         'authors':      [a.strip() for a in request.form.getlist('authors') if a.strip()],
         'affiliations': [i.strip() for i in request.form.getlist('affiliations') if i.strip()],
+        'journal':       request.form.get('source_display_name','').strip(),
     }
 
     year_from = request.form.get('year_from', '').strip()
@@ -198,4 +193,4 @@ def about():
     return render_template('about.html')
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug = True)
