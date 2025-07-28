@@ -383,24 +383,12 @@ html {
     gap: 15px;
 }
 
-/* Footer */
-.footer {
-    background: #b45252;
-    width: 100%;
-    min-height: 10px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 50px 20px;
-}
-
 .disclaimer-card {
     background: rgba(255, 255, 255, 0.95);
     border-radius: 40px;
     padding: 30px;
     width: 100%;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 20px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     animation: fadeInUp 0.8s ease-out;
@@ -414,14 +402,11 @@ html {
     margin-bottom: 20px;
 }
 
-.disclaimer-email {
-    color: #000;
-    text-decoration: underline;
-    transition: color 0.3s ease;
-}
-
-.disclaimer-email:hover {
-    color: #6b1e1e;
+.scroll-spacer {
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    pointer-events: none;
 }
 
 /* Main Content - About */
@@ -434,24 +419,11 @@ html {
     position: relative;
 }
 
-/* Backdrop */
-.backdrop {
-    background: rgba(233, 122, 122, 0.45);
-    border-radius: 54px;
-    width: 90%;
-    max-width: 1634px;
-    height: auto;
-    min-height: 80vh;
-    position: absolute;
-    backdrop-filter: blur(8.9px);
-    z-index: 1;
-}
-
 /* Content Container */
 .content-container {
     position: relative;
     z-index: 2;
-    width: 90%;
+    width: 100%;
     max-width: 1400px;
     display: flex;
     flex-direction: column;
@@ -482,7 +454,7 @@ html {
 .authors-section {
     background: #fef8ec;
     border-radius: 54px;
-    padding: 20px 40px;
+    padding: 20px 0 0 0;
     width: 100%;
     max-width: 1053px;
     text-align: center;
