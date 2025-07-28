@@ -891,3 +891,40 @@ body {
         padding: 6px 10px;
     }
 }
+
+.expandable-cell {
+    position: relative;
+    /* Add padding to the right to prevent text from overlapping the button */
+    padding-right: 35px; 
+}
+
+.text-full {
+    /* Allows the text to wrap nicely when expanded */
+    white-space: normal; 
+}
+
+.expand-btn {
+    position: absolute;
+    right: 5px;
+    top: 0;
+    height: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #b45252;
+    padding: 0 5px;
+    font-size: 14px;
+}
+
+.expand-btn:hover {
+    color: #9d2828;
+}
+
+.expand-icon {
+    /* Adds a smooth animation to the arrow rotation */
+    transition: transform 0.2s ease-in-out;
+}
+
+.expandable-cell.expanded .expand-icon {
+    transform: rotate(180deg);
+}

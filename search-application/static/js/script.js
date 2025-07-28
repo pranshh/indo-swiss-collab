@@ -327,13 +327,7 @@ if (downloadBtn) {
     `;
     this.disabled = true;
 
-    form.submit();                              // now manually submit
-
-    // (optional) if you ever navigate back to this page and want to re-enable:
-    // setTimeout(() => {
-    //   this.innerHTML = originalHTML;
-    //   this.disabled = false;
-    // }, 5000);
+    form.submit();                              
   });
 }
     // Responsive table scroll indicator
@@ -400,3 +394,27 @@ window.changePage = function (page) {
     pageInput.value = page;
     form.submit();
 };
+
+// Add this to your script.js file. It can be a global function.
+
+document.addEventListener('click', function(event) {
+    // Check if the clicked element is our expand button or its icon
+    const expandButton = event.target.closest('.expand-btn');
+    if (!expandButton) return;
+
+    const cell = expandButton.closest('.expandable-cell');
+    const preview = cell.querySelector('.text-preview');
+    const full = cell.querySelector('.text-full');
+    const icon = expandButton.querySelector('.expand-icon');
+
+    // Toggle an 'expanded' class on the container
+    const isExpanded = cell.classList.toggle('expanded');
+
+    // Update styles and icon based on the state
+    preview.style.display = isExpanded ? 'none' : 'inline';
+    full.style.display = isExpanded ? 'inline' : 'none';
+
+    icon.classList.toggle('fa-chevron-down', !isExpanded);
+    icon.classList.toggle('fa-chevron-up', isExpanded);
+    expandButton.setAttribute('title', isExpanded ? 'Show less' : 'Show full text');
+});
