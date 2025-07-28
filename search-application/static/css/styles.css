@@ -137,6 +137,14 @@ body {
     margin-bottom: 20px;
 }
 
+/* This adds empty space so you can scroll down on the index page */
+.scroll-spacer {
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    pointer-events: none;
+}
+
 /* Tooltips */
 .tooltip-icon {
     display: inline-flex;
