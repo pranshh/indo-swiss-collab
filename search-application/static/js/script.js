@@ -1,5 +1,14 @@
 // --- Index Page Script ---
 document.addEventListener('DOMContentLoaded', function () {
+
+    // Tooltip Initialization
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            delay: { "show": 50, "hide": 100 } // 50ms delay to show, 100ms to hide
+        });
+    });
+
     // Generic autocomplete setup function
     function setupAutocomplete(inputSelector, endpoint, datalistId) {
         const input = document.querySelector(inputSelector);
