@@ -95,15 +95,12 @@ def search():
     try:
         page = int(request.form.get('page', 1))
         params = {
-            # strings:
-            'title':        request.form.get('title','').strip(),
-            'abstract':     request.form.get('abstract','').strip(),
+            'title_abstract': request.form.get('title_abstract','').strip(),
             'doi':          request.form.get('doi','').strip(),
             'year':         '',
             # lists:
             'authors':      [a.strip() for a in request.form.getlist('authors') if a.strip()],
             'affiliations': [i.strip() for i in request.form.getlist('affiliations') if i.strip()],
-            'journal':       request.form.get('source_display_name','').strip(),
         }
         print("FILTER PARAMS:", params)
 

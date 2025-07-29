@@ -11,7 +11,7 @@
 <body>
     
     <img class="background-image" src="/static/images/background.png" alt="Background">
-    <!-- Header -->
+
     <header class="header">
         <h1 class="header-title">Indo-Swiss Research Publication Database</h1>
         <div class="about-button">
@@ -19,7 +19,6 @@
         </div>
     </header>
 
-    <!-- Main Content -->
     <main class="main-content">
         <div class="content-wrapper">
 
@@ -31,7 +30,6 @@
 
             <div class="search-container">
                 <form action="/search" method="post">
-                    <!-- Main Search Bar -->
                     <div class="search-system">
                         <button type="submit" class="search-bar">
                             <span class="search-text">Search the Database</span>
@@ -42,7 +40,6 @@
                             </div>
                         </button>
                     </div>
-                    <!-- Advanced Filters -->
                     <div class="advanced-filters show" id="advancedFilters">
                         <div class="filter-group">
                             <label class="form-label">
@@ -88,38 +85,38 @@
                                 <label class="form-label">
                                     Authors
                                     <span class="tooltip-icon" data-bs-toggle="tooltip" data-bs-placement="right" 
-                                        title="Use + button to add multiple authors (works as OR condition). Only Indian and Swiss authors are available in autocomplete.">
+                                        title="Use X button to add multiple authors (works as an AND condition). Only Indian and Swiss authors are available in autocomplete.">
                                         <i class="fas fa-info-circle"></i>
                                     </span>
                                 </label>
                                 <div class="multi-input">
                                     <input type="text" class="filter-input" name="authors" placeholder="Search in Authors" list="authorsList">
-                                    <button type="button" class="add-btn" data-target="authors-container">+</button>
+                                    <button type="button" class="add-btn" data-target="authors-container">×</button>
                                 </div>
                             </div>
 
-                            <!-- Institutions field -->
                             <div id="affiliations-container" class="filter-group-multi">
                                 <label class="form-label">
                                     Institutions
                                     <span class="tooltip-icon" data-bs-toggle="tooltip" data-bs-placement="right" 
-                                        title="Use + button to add multiple institutions (works as OR condition)">
+                                        title="Use X button to add multiple institutions (works as an AND condition)">
                                         <i class="fas fa-info-circle"></i>
                                     </span>
                                 </label>
                                 <div class="multi-input">
                                     <input type="text" class="filter-input" name="affiliations" placeholder="Search in Institution" list="institutionList">
-                                    <button type="button" class="add-btn" data-target="affiliations-container">+</button>
+                                    <button type="button" class="add-btn" data-target="affiliations-container">×</button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
-        </div>
-    </main>
+        </main>
 
-    <div class="scroll-spacer"></div>
+        <div class="scroll-spacer"></div>
+
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
