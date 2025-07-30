@@ -532,7 +532,6 @@ clean_id <- function(id) {
   str_remove_all(id, "(https://openalex\\.org/)|(https://ror\\.org/)|(https://doi\\.org/)|(https://orcid\\.org/)")
 }
 
-<<<<<<< HEAD
 # Fast clean_id on JSON strings
 clean_affiliations_json_fast <- function(json_str) {
   if (is.na(json_str)) return(NA_character_)
@@ -1183,7 +1182,7 @@ cat("validate_cleaned_data()\n")
 
 
 
-```{r Process openAlex, echo = F}
+```{r Process openAlex - old, not relevant, echo = F, eval = F}
 
 
 
@@ -1343,22 +1342,4 @@ write_feather(author.details,
 
 
 <!-- Chunks that are not current priorities -->
-
-
-
-```{r Matching those without doi, echo = F, eval=F}
-
-
-printo('For the WoS data, ',sum(is.na(wosdat$doi)), " out of ", nrow(wosdat), ' entries do not have a doi. These are books or conference proceedings.')
-
-wos.nodoi = wosdat %>% filter(is.na(doi))
-#how many of these have unique ISSN or ISBN
-wos.isbn = wos.nodoi %>% filter(!is.na(ISBN)) %>% group_by(ISBN) %>% summarise(count = n()) %>% arrange(desc(count))
-table(wos.isbn$count)
-wos.issn = wos.nodoi %>% filter(!is.na(ISSN)) %>% group_by(ISSN) %>% summarise(count = n()) %>% arrange(desc(count))
-
-
-
-```
-
 

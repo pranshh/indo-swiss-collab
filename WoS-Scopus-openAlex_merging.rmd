@@ -1297,11 +1297,11 @@ create_author_summary_fast <- function(authors_processed) {
   
   print(paste("Step 2 completed in:", round(difftime(Sys.time(), step2_time, units = "secs"), 2), "seconds"))
   
-  print("Step 3: Checking India-Switzerland collaborations...")
+  print("Step 3: Determining collaboration status...")
   step3_time <- Sys.time()
   
-  # Step 3: Check for India-Switzerland collaboration per work
-  # For each author-work, check if that specific work has both IN and CH
+  # Step 3: Determine collaboration status for each author
+  # First, check for India-Switzerland collaboration per work (for Joint category)
   work_country_check <- authors_processed[
     !is.na(author_id) & !is.na(author_countries),
     .(
@@ -1311,10 +1311,38 @@ create_author_summary_fast <- function(authors_processed) {
     by = .(author_id, work_id)
   ]
   
-  # Check if any work for each author has both IN and CH
-  india_swiss_collab <- work_country_check[, .(
+  # Check if any work for each author has both IN and CH (Joint collaboration)
+  india_swiss_joint <- work_country_check[, .(
     has_india_swiss_collab = any(has_IN & has_CH)
   ), by = author_id]
+  
+  # Check overall affiliation patterns for each author across all their works
+  author_country_patterns <- countries_expanded[, .(
+    has_ever_IN = any(countries == "IN"),
+    has_ever_CH = any(countries == "CH")
+  ), by = author_id]
+  
+  # Merge collaboration data to determine collab_status
+  collaboration_data <- merge(india_swiss_joint, author_country_patterns, by = "author_id", all = TRUE)
+  
+  # Handle missing values (authors with no country data)
+  collaboration_data[is.na(has_india_swiss_collab), has_india_swiss_collab := FALSE]
+  collaboration_data[is.na(has_ever_IN), has_ever_IN := FALSE]
+  collaboration_data[is.na(has_ever_CH), has_ever_CH := FALSE]
+  
+  # Create categorical collab_status variable
+  collaboration_data[, collab_status := fcase(
+    # Joint: has both IN and CH affiliations in same paper(s)
+    has_india_swiss_collab == TRUE, "Joint",
+    # Both: has had both IN and CH affiliations but never in same paper
+    has_ever_IN == TRUE & has_ever_CH == TRUE & has_india_swiss_collab == FALSE, "Both",
+    # IN: has had Indian affiliation but never Swiss
+    has_ever_IN == TRUE & has_ever_CH == FALSE, "IN",
+    # CH: has had Swiss affiliation but never Indian
+    has_ever_IN == FALSE & has_ever_CH == TRUE, "CH",
+    # None: neither Indian nor Swiss affiliations
+    default = "None"
+  )]
   
   print(paste("Step 3 completed in:", round(difftime(Sys.time(), step3_time, units = "secs"), 2), "seconds"))
   
@@ -1352,11 +1380,12 @@ create_author_summary_fast <- function(authors_processed) {
   # Add country lists  
   final_summary <- merge(final_summary, country_lists, by = "author_id", all.x = TRUE)
   
-  # Add collaboration flag
-  final_summary <- merge(final_summary, india_swiss_collab, by = "author_id", all.x = TRUE)
+  # Add collaboration status (categorical variable)
+  final_summary <- merge(final_summary, collaboration_data[, .(author_id, collab_status)], 
+                         by = "author_id", all.x = TRUE)
   
-  # Fill missing collaboration flag with FALSE
-  final_summary[is.na(has_india_swiss_collab), has_india_swiss_collab := FALSE]
+  # Fill missing collaboration status with "None"
+  final_summary[is.na(collab_status), collab_status := "None"]
   
   # Handle missing list columns
   final_summary[is.na(institution_work_counts), institution_work_counts := list(list(data.table(institutions = character(0), n_works = integer(0))))]
@@ -1366,6 +1395,10 @@ create_author_summary_fast <- function(authors_processed) {
   setorder(final_summary, -nWorks)
   
   print(paste("Step 5 completed in:", round(difftime(Sys.time(), step5_time, units = "secs"), 2), "seconds"))
+  
+  # Print summary of collaboration status distribution
+  print("Collaboration status distribution:")
+  print(final_summary[, .N, by = collab_status][order(-N)])
   
   end_time <- Sys.time()
   print(paste("Total processing time:", round(difftime(end_time, start_time, units = "secs"), 2), "seconds"))
@@ -1451,7 +1484,7 @@ work_breaks <- c(1, 2, 6, 11, 26, 51, Inf)
 work_labels <- c("1 work", "2-5 works", "6-10 works", "11-25 works", "26-50 works", ">50 works")
 authors_summ[, work_category := cut(nWorks, breaks = work_breaks, labels = work_labels, right = FALSE)]
 
-work_distribution <- authors_summ[, .N, by = work_category][order(work_category)]
+work_distribution <- authors_summ[, .N, by = work_cfategory][order(work_category)]
 work_distribution[, percentage := round(N / sum(N) * 100, 1)]
 
 print("\nWork distribution among authors:")
