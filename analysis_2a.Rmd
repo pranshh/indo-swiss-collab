@@ -1,0 +1,265 @@
+---
+title: "Indo-Swiss Research Database - Analysis for Phase 1 project submission"
+author: "Siddharth Bharath, Pranshu Jaiswal, Lena Robra, Manfred Max Bergman
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+
+```{r setup, echo=F, eval =T, warning = F}
+rm(list = ls())
+source('core_utilities.R')
+using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2','readxl','readr','purrr','knitr','tibble', 'arrow','jsonlite')
+
+publications_dt <- read_parquet("Data/publications_full_dataset_2000-2024.parquet")
+
+#Retain articles - remove letters, notes, errata
+#Document types are mostly derived from Scopus. Look at https://www.ilovephd.com/list-of-document-types-covered-in-scopus/ - for details of what they refer to
+publications_dt = publications_dt %>% filter((grepl('(article|review|book)',`document type`) | `document type` %in% c('conference paper','dataset','proceedings paper', 'review', 'letter','editorial','paratext','report')))
+
+#Get the Institution classification
+# auth_summ = read_parquet('Data/authors_summary_in_ch.parquet')
+
+using('googlesheets4')
+inst_class = read_sheet(ss = '173RqXA8x3LISQg5NWEicH73r10D9y92XSMdx1raRyYc', sheet = 'List from OpenAlex')
+
+#Get the paper classification
+topics_class = read_sheet(ss = '1WRlXkr4LzLiv6pka8cnPz0tlmid8dbsR9VUo_u-Lh-w', sheet = 'OpenAlex_subfields')
+topics_class = topics_class %>% filter(!is.na(Max_classification))
+
+publications_dt = publications_dt %>%
+mutate(primary_subfield_id = str_remove(primary_subfield_id,'subfields/')) %>%
+left_join(topics_class %>% select(Max_classification, primary_subfield_id = subfield_id), by = 'primary_subfield_id') %>%
+rename(Research_Area = Max_classification)
+
+
+
+```
+
+
+1 overall shared publications between researchers from India and Switzerland from 2000 to 2024 (i.e. number of publications over time)
+
+
+
+#Temporal trends in overall data
+
+## How has the number of publications changed over time?
+
+```{r, echo = F, fig.height=3, fig.width = 4.5, warning = F}
+
+dat.plot.all = publications_dt %>% group_by(publication_year) %>%
+summarise(total.pubs = n())
+dat.plot.all = publications_dt %>% group_by(publication_year, primary_domain_name) %>%
+summarise(total = n()) %>% 
+filter(!is.na(primary_domain_name)) %>%
+pivot_wider(names_from = primary_domain_name, values_from = total) %>% left_join(dat.plot.all)
+
+ggplot(dat.plot.all, aes(x=publication_year, y = total.pubs)) +
+theme_bw() + geom_col() + labs(x = 'Year',y = 'Number of Publications Publications', title = 'Growth in Indo-Swiss collaborative publications', subtitle = 'Annual Publication volume from 2000-2024')
+
+ggsave('plots/total_pubs_2000_2024.jpg',height = 5.5, width = 8, units = 'in')
+
+```
+
+
+## How does this compare to global publications
+
+```{r, echo = F, fig.height=3, fig.width = 4.5}
+
+global.dat = read.csv('Data/Scopus 1900-2020.csv')
+global.dat = global.dat %>% select(year = Publication.year, Num_global_articles = All.articles..left.axis.)
+
+dat.plot.all = left_join(dat.plot.all,global.dat,by='year')
+
+ggplot(dat.plot.all, aes(x = year, y = total.pubs)) +
+  theme_bw() + geom_point() + geom_line(color = 'red') + scale_y_log10() +
+  geom_line(mapping = aes(x = year, y = Num_global_articles), color = 'black') +
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2024',subtitle = 'Across all research fields', x = 'Year', y = 'Number of Publications')
+
+
+```
+
+The total number of publications that are coauthored by Indian and Swiss researchers has increased from `r dat.plot.all$total.pubs[1]` in year 2000 to `r dat.plot.all$total.pubs[25]` in year 2025, which is a ``r round(dat.plot.all$total.pubs[25]/dat.plot.all$total.pubs[1],0)`-fold increase over 24 years. In the 20 years from 2000 - 2020, the number of publications indexed within Scopus increased from 0.9 million publications, to 2.5 million. This is only a 2.8 fold increase ^[Data of total number of entries in Scopus by year is gotten from Mike Thelwall, Pardeep Sud; Scopus 1900–2020: Growth in articles, abstracts, countries, fields, and journals. Quantitative Science Studies 2022; 3 (1): 37–50. doi: https://doi.org/10.1162/qss_a_00177]. OpenAlex records 3.5 million publications in the year 2000 as against 9.2 million publications in 2024, a 2.6 fold increase over that duration. 
+
+# Which research areas are represented in this collaboration
+
+
+Let's make some visualisations of how publications in different categories have changed over time.
+
+## How are different domains growing?
+
+```{r, echo = F, fig.height=3, fig.width = 4.5}
+
+dat.plot = dat.plot.all %>% pivot_longer(`Health Sciences`:`Social Sciences`, names_to = 'Domain', values_to = 'publications')
+
+ggplot(dat.plot, aes(x=publication_year, y = publications, color = Domain)) +
+theme_bw() + geom_line() + labs(x = 'Year',y = 'Annual Publications', title = 'Growth in different domains')
+
+```
+2 publications associated with health, SSH, big data, and space science from 2000 to 2024 (i.e. it was aeronautics and something else according to the Leiden categorization)(i.e. four large topics over time)
+
+```{r Max topical area classification, echo = F, eval = T}
+
+dat.plot = publications_dt %>% filter(!is.na(Research_Area)) %>% group_by(publication_year,`Research_Area`) %>%
+summarise(publications = n(),.groups = 'drop')
+
+p1 = ggplot(dat.plot, aes(x=publication_year, y = publications, color = Research_Area, shape = Research_Area)) +
+theme_bw() + geom_line() + geom_point() + labs(x = 'Year',y = 'Annual Publications', title = 'Growth of different research areas', subtitle = 'Annual publication volume from 2000-2024')
+
+ggsave('plots/Max_research_areas_2000-2024.jpg',p1,width = 8, height =5.5, units = 'in', scale = 0.8)
+
+```
+3-6 one graph for each of the subtopics of health, SSH, big data, and space science between 2000 and 2024 (the middle range detail according to the Leiden classification, not the very fine/detailed one)
+
+
+```{r Drilling into each research area, echo = F, fig.height=4.5, fig.width = 6}
+
+dat.plot = publications_dt %>% 
+filter(!is.na(Research_Area)) %>% group_by(primary_field_name, primary_subfield_name, publication_year) %>%
+summarise(total.pubs = n(), .groups = 'drop')
+
+library(RColorBrewer)
+library(scales)
+library(patchwork)
+library(data.table)
+
+publications_dt = as.data.table(publications_dt)
+# setnames(publications_dt, 'Max_classification','Research_Area')
+
+# Create analysis period groupings
+# Group years into 5-year periods for clearer trend visualization
+publications_dt[, period := cut(publication_year, 
+                               breaks = c(1999, 2004, 2009, 2014, 2019, 2024),
+                               labels = c("2000-04", "2005-09", "2010-14", 
+                                        "2015-19", "2020-24"),
+                               include.lowest = TRUE)]
+
+
+for (i in unique(publications_dt$Research_Area)) {
+  if(is.na(i)) next
+  dat.plot = publications_dt[Research_Area == i]
+  if( i %in% c('Big Data', 'Space')) {sub_area = 'primary_subfield_name'}
+  if(i %in% c('Health', 'SSH')) {sub_area = 'primary_field_name'}
+  setnames(dat.plot,sub_area,'Research_subfield')
+  dat = dat.plot %>% as_tibble() %>% group_by(period,Research_subfield) %>%
+summarise(publications = n())
+  p1 = ggplot(data = dat, aes(x = period,y = publications)) +
+theme_bw() + geom_col() + facet_wrap(~Research_subfield, scales = 'free') + labs(x = 'Period', y = 'Publications', title = paste0('Growth of Publications in ',i, ' split into research areas'))
+ggsave(plot = p1,filename = paste0('plots/',i,'_growth_bars.jpg'), height = 7, width = 10, units = 'in', scale = ifelse(i == 'Space',0.7,0.9))
+}
+
+
+
+```
+
+
+# How has the composition of research keywords changed over 25 years
+
+We examine all the papers in two 5 year periods - 2000-2004 and 2020-2024. In case author keywords are not provided for a paper, we have used the keywords that are generated by Web of Science or Scopus. Below are visualisations of the most common keywords using a word cloud.
+
+## Research keywords in the period of 2000 - 2004
+
+```{r Keywords at the start of the period, echo = F, warning = F, fig.height = 6, fig.width = 9}
+using('wordcloud', 'RColorBrewer')
+
+keywords_start = paper.details %>% filter(year >= 2000 & year <= 2004) %>%
+  select(year,`author keywords`,keywords_plus_wos,index_keywords_scopus) %>%
+  mutate(keywords = ifelse(!is.na(`author keywords`), 
+                           `author keywords`,
+                           ifelse(!is.na(keywords_plus_wos), 
+                                  keywords_plus_wos,
+                                  index_keywords_scopus))) %>%
+  filter(!is.na(keywords))
+
+printo('There are ',nrow(keywords_start),' publications with keywords in the 5 year period between 2000 and 2004')
+
+keylist1 = keywords_start %>% select(keywords) %>%
+  separate_longer_delim(keywords,delim = ';') %>% mutate(keywords = keywords %>% str_squish() %>% str_to_lower()) %>% group_by(keywords) %>% summarise(freq = n()) %>% arrange(desc(freq))
+
+wordcloud(words = keylist1$keywords, freq = keylist1$freq,scale = c(3,0.5),
+          max.words = 100, min.freq = keylist1$freq[1]/20, random.order = FALSE, rot.per = 0.35,         colors = brewer.pal(8, "Dark2"))
+
+rm(keywords_start,keylist1)
+
+```
+
+## Research in the period 2020 to 2024
+
+
+```{r Keywords at the end of the period, echo = F, warning=F, fig.height = 6, fig.width = 9}
+
+keywords_end = paper.details %>% filter(year >= 2020 & year <= 2024) %>%
+  select(year,`author keywords`,keywords_plus_wos,index_keywords_scopus) %>%
+  mutate(keywords = ifelse(!is.na(`author keywords`), 
+                           `author keywords`,
+                           ifelse(!is.na(keywords_plus_wos), 
+                                  keywords_plus_wos,
+                                  index_keywords_scopus))) %>% filter(!is.na(keywords))
+
+printo('There are ',nrow(keywords_end),' publications with keywords in the 5 year period between 2020 and 2024')
+
+
+keylist2 = keywords_end  %>% select(keywords) %>%
+  separate_longer_delim(keywords,delim = ';') %>% mutate(keywords = keywords %>% str_squish() %>% str_to_lower() %>% str_replace('^humans','human')) %>% group_by(keywords) %>% summarise(freq = (n())) %>% arrange(desc(freq)) %>%
+  filter(keywords != 'article')
+
+#human is the largest keyword by far, skewing the wordcloud, so we cut it down
+keylist2$freq[1] = keylist2$freq[2]
+
+wordcloud(words = keylist2$keywords, freq = keylist2$freq,scale = c(3,0.5),
+          max.words = 100, min.freq = keylist2$freq[1]/20, random.order = FALSE, rot.per = 0.35,         colors = brewer.pal(8, "Dark2"))
+
+rm(keywords_end,keylist2)
+
+```
+
+# Identifying the institutions conducting research
+
+```{r Mapping author data to institutions, echo = F, eval = T}
+
+author.details = readRDS(file = 'Data/author_details.RData')
+
+
+dat1 = author.details %>% unnest(author_details) 
+
+
+dat1 = dat1 %>% 
+  filter(country %in% c('India','Switzerland'))
+  # mutate(primary_institution = str_split(institution, ",", simplify = TRUE)[,1] %>% str_to_lower())
+
+swiss_inst_cleaned = read_csv(file = 'Data/institutions_standardized_output_swiss.csv', show_col_types = F) %>% select(-nPapers,-nAuth) #%>% rename(primary_institution = institution)
+
+dat2 = dat1 %>% filter(country == 'Switzerland') %>% left_join(swiss_inst_cleaned, by = join_by(datasource, institution, country)) %>%
+  rename(institution_std = `standardized name`)
+# View(dat2 %>% filter(`standardized name` == '---'))
+
+rm(dat1,swiss_inst_cleaned)
+
+```
+
+
+```{r Graph the change in publications for the different institutional domains, echo = F, eval = T}
+
+dat2 = dat2 %>% 
+  mutate(inst_group = 
+           ifelse(institution_std %in% c('University of Geneva - GE', 'University of Applied Sciences and Arts Western Switzerland - HES-SO', 'University of Berne - BE', 'University of Zurich - ZH', 'University of Basel - BS','University of Fribourg - FR', 'University of Lausanne - LA', 'University of Neuchatel - NE','University of Lucerne - LU','Università della Svizzera italiana - USI','University Hospital Basel - BS'),
+                  'Cantonal', 
+                  ifelse(institution_std %in% c('ETH Zurich - ETHZ','EPF Lausanne - EPFL'), 'ETH','Others')))
+
+dat2.1 = dat2 %>% 
+  left_join(paper.details %>% select(pubNum,year), by = 'pubNum') %>%
+  group_by(year,inst_group) %>%
+  summarise(num_publications = length(unique(pubNum)), .groups ='drop') %>%
+  filter(year < 2025)
+
+ggplot(data = dat2.1 %>% filter(inst_group!='Others'), mapping = aes(x = year, y = num_publications, color = inst_group)) +
+  theme_bw() + geom_line() + geom_point() +
+  labs(title = 'Joint Indo-Swiss publications between 2000 and 2024', x = 'Year', y = 'Number of Publications')
+ggsave('byinst.png', height = 6, width = 9)
+
+```
+
+
