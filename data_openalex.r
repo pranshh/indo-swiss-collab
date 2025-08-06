@@ -633,7 +633,6 @@ validate_cleaned_data()
 
 paper.details = read_parquet("Data/publications_full_dataset_2000-2024.parquet")
 authors_processed = read_parquet("Data/authors_processed_flat.parquet")
-authors_summ = read_parquet("Data/authors_summary_with_lists.parquet")
 
 create_author_summary_fast <- function(authors_processed) {
   

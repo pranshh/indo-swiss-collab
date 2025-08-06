@@ -1,0 +1,855 @@
+---
+title: "Indo-Swiss Research Database - Analysis for Phase 1 project submission"
+author: "Siddharth Bharath, Pranshu Jaiswal, Lena Robra, Manfred Max Bergman
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+
+```{r setup, echo=F, eval =T}
+rm(list = ls())
+source('core_utilities.R')
+using('httr','stringr','dplyr','tidyr','tidyRSS','jsonlite','lubridate','ggplot2','readxl','readr','purrr','knitr','tibble', 'arrow','jsonlite')
+
+# Indo-Swiss Research Collaboration: Institutional-Publication Data Integration
+# This script joins publication data with institutional information for trend analysis
+
+# =============================================================================
+# 1. LOAD DATASETS
+# =============================================================================
+
+# Load main publication dataset
+publications <- read_parquet("Data/publications_full_dataset_2000-2024.parquet")
+
+# Load institutional relationships
+institutions <- read_parquet("Data/institutional_relationships_IN_CH.parquet")
+
+# Load Swiss institutional groups (assuming CSV format)
+# swiss_groups <- read.csv("Data/swiss_institutional_groups.csv") # Adjust filename as needed
+# swiss_groups <- read_csv("Data/swiss_institutional_groups.csv",locale = locale(encoding = "UTF-8")) # Adjust filename as needed
+swiss_groups <- readxl::read_xlsx("Data/swiss_institutional_groups.xlsx")
+
+cat("Dataset dimensions:\n")
+cat("Publications:", nrow(publications), "rows\n")
+cat("Institutions:", nrow(institutions), "rows\n")
+
+# =============================================================================
+# 2. PREPARE INSTITUTIONAL DATA
+# =============================================================================
+
+# Convert institutional names into lowercase and remove diacritics
+institutions = institutions %>%
+mutate(institution_name = tolower(stringi::stri_trans_general(institution_name, "Latin-ASCII")) %>% 
+str_replace('university of st.gallen', 'university of st. gallen'))
+
+swiss_groups = swiss_groups %>%
+mutate(institution_name = tolower(stringi::stri_trans_general(institution_name, "Latin-ASCII")))
+
+# Parse work_ids from semicolon-separated strings
+institutions_expanded <- institutions %>%
+  # Split the work_ids string into individual work_ids
+  separate_rows(work_ids, sep = ";") %>%
+  # Clean any whitespace
+  mutate(work_id = str_trim(work_ids)) %>%
+  # Remove empty work_ids
+  filter(!is.na(work_id) & work_id != "") %>%
+  # Select relevant columns
+  select(institution_name, country_code, work_id, n_publications, n_authors)
+
+cat("Expanded institutional data:", nrow(institutions_expanded), "institution-publication pairs\n")
+
+# =============================================================================
+# 3. ADD SWISS INSTITUTIONAL GROUPS (if available)
+# =============================================================================
+
+# If you have the Swiss groups data, uncomment and adjust this section:
+institutions_expanded <- institutions_expanded %>%
+  left_join(swiss_groups, by = "institution_name") %>%
+  # Fill missing groups for non-Swiss institutions
+  mutate(
+    institutional_group = case_when(
+      country_code == "CH" & !is.na(group) ~ group,
+      country_code == "CH" & is.na(group) ~ "Other Swiss",
+      country_code == "IN" ~ "Indian Institution",
+      TRUE ~ "Other"
+    )
+  )
+
+# View(institutions_expanded %>% filter(grepl('de lausanne',institution_name)))
+
+# For now, create basic institutional categories
+institutions_expanded <- institutions_expanded %>%
+  mutate(
+    institutional_category = case_when(
+      country_code == "CH" ~ "Swiss Institution",
+      country_code == "IN" ~ "Indian Institution",
+      TRUE ~ "Other"
+    )
+  )
+
+# =============================================================================
+# 4. CREATE PUBLICATION-INSTITUTION MAPPING
+# =============================================================================
+
+# Join publications with institutional data
+publications_with_institutions <- publications %>%
+  # Ensure work_id is character for joining
+  mutate(work_id = as.character(work_id)) %>%
+  # Left join with institutional data
+  left_join(
+    institutions_expanded,
+    by = "work_id",
+    relationship = "one-to-many"  # One publication can have multiple institutions
+  ) %>%
+  # Add flag for whether publication has institutional data
+  mutate(has_institutional_data = !is.na(institution_name))
+
+cat("Publications with institutional data:", 
+    sum(publications_with_institutions$has_institutional_data, na.rm = TRUE), 
+    "records\n")
+
+# =============================================================================
+# 5. CREATE SUMMARY DATASETS FOR ANALYSIS
+# =============================================================================
+
+# A. Publication-level dataset with institutional summary
+publications_institutional_summary <- publications %>%
+  mutate(work_id = as.character(work_id)) %>%
+  left_join(
+    # Summarize institutions per publication
+    institutions_expanded %>%
+      group_by(work_id) %>%
+      summarise(
+        n_institutions_total = n(),
+        n_swiss_institutions = sum(country_code == "CH"),
+        n_indian_institutions = sum(country_code == "IN"),
+        swiss_institutions = paste(institution_name[country_code == "CH"], collapse = "; "),
+        indian_institutions = paste(institution_name[country_code == "IN"], collapse = "; "),
+        .groups = "drop"
+      ),
+    by = "work_id"
+  ) #%>%
+  # Clean up empty institution lists
+  # mutate(
+  #   swiss_institutions = ifelse(swiss_institutions == "", NA, swiss_institutions),
+  #   indian_institutions = ifelse(indian_institutions == "", NA, indian_institutions)
+    # Add collaboration type
+    # collaboration_type = case_when(
+    #   n_swiss_institutions > 0 & n_indian_institutions > 0 ~ "Indo-Swiss Collaboration",
+    #   n_swiss_institutions > 0 & n_indian_institutions == 0 ~ "Swiss Only",
+    #   n_swiss_institutions == 0 & n_indian_institutions > 0 ~ "Indian Only",
+    #   TRUE ~ "Other/Unknown"
+    # )
+  # )
+
+# B. Institution-level trend data
+institution_trends <- publications_with_institutions %>%
+  filter(has_institutional_data) %>%
+  group_by(
+    institution_name, 
+    country_code, 
+    institutional_category,
+    publication_year,
+    primary_domain_name,
+    primary_field_name,
+    institutional_group
+  ) %>%
+  summarise(
+    n_publications = n(),
+    total_citations = sum(cited_by_count, na.rm = TRUE),
+    mean_citations = mean(cited_by_count, na.rm = TRUE),
+    median_citations = median(cited_by_count, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# C. Top institutions by field
+top_institutions_by_field <- publications_with_institutions %>%
+  filter(has_institutional_data & !is.na(primary_field_name)) %>%
+  group_by(institution_name, country_code, primary_field_name) %>%
+  summarise(
+    n_publications = n(),
+    total_citations = sum(cited_by_count, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  # Rank institutions within each field
+  group_by(primary_field_name) %>%
+  arrange(desc(n_publications)) %>%
+  mutate(
+    rank_by_publications = row_number(),
+    rank_by_citations = rank(desc(total_citations), ties.method = "min")
+  ) %>%
+  ungroup()
+
+# =============================================================================
+# 6. DATA QUALITY CHECKS
+# =============================================================================
+
+cat("\n=== DATA QUALITY SUMMARY ===\n")
+cat("Total publications:", nrow(publications), "\n")
+cat("Publications with institutional data:", 
+    nrow(publications_institutional_summary %>% filter(!is.na(n_institutions_total))), "\n")
+cat("Unique institutions represented:", 
+    length(unique(institutions_expanded$institution_name)), "\n")
+
+# # Collaboration type breakdown
+# collab_summary <- publications_institutional_summary %>%
+#   count(collaboration_type, sort = TRUE)
+# print(collab_summary)
+
+# # Top institutions by publication count
+# cat("\nTop 10 institutions by publication count:\n")
+# top_institutions <- institutions %>%
+#   arrange(desc(n_publications)) %>%
+#   head(10) %>%
+#   select(institution_name, country_code, n_publications, n_authors)
+# print(top_institutions)
+
+# =============================================================================
+# 7. SAVE PROCESSED DATASETS
+# =============================================================================
+
+# Save the main publication dataset with institutional summary
+write_parquet(
+  publications_institutional_summary,
+  "Data/publications_with_institutional_summary.parquet"
+)
+
+# Save the detailed publication-institution mapping
+write_parquet(
+  publications_with_institutions,
+  "Data/publications_institutional_detailed.parquet"
+)
+
+# Save institution trend data
+write_parquet(
+  institution_trends,
+  "Data/institution_trends_by_year_field.parquet"
+)
+
+# Save top institutions by field
+write_parquet(
+  top_institutions_by_field,
+  "Data/top_institutions_by_field.parquet"
+)
+
+cat("\n=== FILES SAVED ===\n")
+cat("1. publications_with_institutional_summary.parquet - Main publication data with institutional summaries\n")
+cat("2. publications_institutional_detailed.parquet - Detailed publication-institution mapping\n")
+cat("3. institution_trends_by_year_field.parquet - Institution trends by year and field\n")
+cat("4. top_institutions_by_field.parquet - Institution rankings by research field\n")
+
+# =============================================================================
+# 8. EXAMPLE ANALYSIS FUNCTIONS
+# =============================================================================
+
+# Function to analyze institutional trends over time
+analyze_institutional_trends <- function(institution_name_pattern = NULL,
+                                       inst_group = NULL,
+                                       field_name = NULL, 
+                                       start_year = 2000, 
+                                       end_year = 2024) {
+  
+  data <- institution_trends %>%
+    filter(publication_year >= start_year & publication_year <= end_year)
+  
+  if (!is.null(institution_name_pattern)) {
+    data <- data %>%
+      filter(tolower(institutional_group) == tolower(inst_group))
+  }
+  
+  if (!is.null(inst_group)) {
+    data <- data %>%
+      filter(str_detect(inst_group, regex(institution_name_pattern, ignore_case = TRUE)))
+  }
+
+  if (!is.null(field_name)) {
+    data <- data %>%
+      filter(str_detect(primary_field_name, regex(field_name, ignore_case = TRUE)))
+  }
+  
+  return(data %>%
+    group_by(institution_name, publication_year) %>%
+    summarise(
+      total_publications = sum(n_publications),
+      total_citations = sum(total_citations),
+      .groups = "drop"
+    ) %>%
+    arrange(institution_name, publication_year))
+}
+
+# Function to get top institutions in a specific field
+get_top_institutions_in_field <- function(field_name, top_n = 10) {
+  top_institutions_by_field %>%
+    filter(str_detect(primary_field_name, regex(field_name, ignore_case = TRUE))) %>%
+    arrange(rank_by_publications) %>%
+    head(top_n) %>%
+    select(institution_name, country_code, primary_field_name, 
+           n_publications, total_citations, rank_by_publications)
+}
+
+cat("\n=== EXAMPLE USAGE ===\n")
+cat("# Analyze ETH Zurich trends:\n")
+cat("eth_trends <- analyze_institutional_trends('ETH Zurich')\n\n")
+cat("# Get top institutions in Computer Science:\n")
+cat("top_cs <- get_top_institutions_in_field('Computer Science')\n\n")
+cat("# Analyze all Swiss universities in Physics:\n")
+cat("swiss_physics <- analyze_institutional_trends(field_name = 'Physics')\n")
+
+print("Script completed successfully!")
+
+```
+
+
+#Temporal trends in overall data
+
+## How has the number of publications changed over time?
+
+```{r, echo = F, fig.height=3, fig.width = 4.5, warning = F}
+
+dat.plot.all = publications %>% group_by(publication_year) %>%
+summarise(total.pubs = n())
+dat.plot.all = publications %>% group_by(publication_year, primary_domain_name) %>%
+summarise(total = n()) %>% 
+filter(!is.na(primary_domain_name)) %>%
+pivot_wider(names_from = primary_domain_name, values_from = total) %>% left_join(dat.plot.all)
+
+ggplot(dat.plot.all, aes(x=publication_year, y = total.pubs)) +
+theme_bw() + geom_col() + labs(title = 'Growth in Indo-Swiss collaborative publications',subtitle = 'Across all research fields, 2000-2024', x = 'Year', y = 'Number of Publications')
+
+ggsave('plots/total_publications_2000_2024.png', width = 4, height = 3, scale = 1.5)
+```
+
+
+```{r Cantonal vs ETH vs others, fig.height = 4, fig.width = 7, echo = F}
+
+dat.plot = institution_trends %>% 
+filter(country_code =='CH') %>%
+filter(institutional_group %in% c('Cantonal Universities', 'ETH','ETH Domain','Universities of Applied Sciences', 'University Hospitals')) %>%
+group_by(publication_year, institutional_group) %>%
+summarise(total_pubs = sum(n_publications))
+
+ggplot(dat.plot,aes(x = publication_year,y = total_pubs, color = institutional_group, shape = institutional_group)) + geom_line() + geom_point() + theme_bw() + labs(title = 'Growth in Indo-Swiss collaborative publications', subtitle = 'Split by Swiss institutional categories', x = 'Year', y = 'Number of Annual Publications') + theme(legend.title=element_blank())
+
+ggsave('plots/institutional_group_split_2000_2024.png', width = 7, height = 4, scale = 1.2)
+
+```
+
+
+## How does this compare to global publications
+
+```{r, echo = F, fig.height=3, fig.width = 4.5, eval = F}
+
+global.dat = read.csv('Data/Scopus 1900-2020.csv')
+global.dat = global.dat %>% select(year = Publication.year, Num_global_articles = All.articles..left.axis.)
+
+dat.plot.all = left_join(dat.plot.all,global.dat,by='year')
+
+ggplot(dat.plot.all, aes(x = year, y = total.pubs)) +
+  theme_bw() + geom_point() + geom_line(color = 'red') + scale_y_log10() +
+  geom_line(mapping = aes(x = year, y = Num_global_articles), color = 'black') +
+  labs(title = 'Growth in Indo-Swiss collaborative publications between 2000 and 2024',subtitle = 'Across all research fields', x = 'Year', y = 'Number of Publications')
+
+
+
+```
+
+The total number of publications that are coauthored by Indian and Swiss researchers has increased from `r dat.plot.all$total.pubs[1]` in year 2000 to `r dat.plot.all$total.pubs[25]` in year 2025, which is a ``r round(dat.plot.all$total.pubs[25]/dat.plot.all$total.pubs[1],0)`-fold increase over 24 years. In the 20 years from 2000 - 2020, the number of publications indexed within Scopus increased from 0.9 million publications, to 2.5 million. This is only a 2.8 fold increase ^[Data of total number of entries in Scopus by year is gotten from Mike Thelwall, Pardeep Sud; Scopus 1900–2020: Growth in articles, abstracts, countries, fields, and journals. Quantitative Science Studies 2022; 3 (1): 37–50. doi: https://doi.org/10.1162/qss_a_00177]. OpenAlex records 3.5 million publications in the year 2000 as against 9.2 million publications in 2024, a 2.6 fold increase over that duration. 
+
+# Which research areas are represented in this collaboration
+
+
+Let's make some visualisations of how publications in different categories have changed over time.
+
+## How are different domains growing?
+
+```{r, echo = F, fig.height=3, fig.width = 4.5}
+
+dat.plot = dat.plot.all %>% pivot_longer(`Health Sciences`:`Social Sciences`, names_to = 'Domain', values_to = 'publications')
+
+ggplot(dat.plot, aes(x=publication_year, y = publications, color = Domain)) +
+theme_bw() + geom_line() + labs(x = 'Year',y = 'Annual Publications', title = 'Growth in different domains')
+
+ggsave('plots/domains_single_2000_2024.png', width = 5, height = 3, scale = 1.5)
+
+```
+
+```{r, echo = F, fig.height=4.5, fig.width = 6}
+
+dat.plot = publications %>% 
+filter(!is.na(primary_domain_name)) %>% group_by(primary_domain_name, primary_field_name, publication_year) %>%
+summarise(total.pubs = n(), .groups = 'drop')
+
+library(RColorBrewer)
+library(scales)
+library(patchwork)
+
+# Assuming your data is in dat.plot
+# Create the main visualization with faceting
+
+# First, let's create a comprehensive faceted plot
+create_publication_trends_plot <- function(dat.plot) {
+  
+  # Calculate some summary statistics for better plotting
+  field_totals <- dat.plot %>%
+    group_by(primary_domain_name, primary_field_name) %>%
+    summarise(total_publications = sum(total.pubs),
+              avg_annual = mean(total.pubs),
+              .groups = "drop") %>%
+    arrange(primary_domain_name, desc(total_publications))
+  
+  # Create a custom color palette for domains
+  domain_colors <- c(
+    "Health Sciences" = "#E31A1C",
+    "Life Sciences" = "#33A02C", 
+    "Physical Sciences" = "#1F78B4",
+    "Social Sciences" = "#FF7F00"
+  )
+  
+  # Main plot with facets by domain
+  p1 <- dat.plot %>%
+    ggplot(aes(x = publication_year, y = total.pubs, color = primary_domain_name)) +
+    geom_line(aes(group = primary_field_name), alpha = 0.7, linewidth = 0.8) +
+    geom_point(size = 1.5, alpha = 0.8) +
+    geom_smooth(aes(group = primary_field_name), method = "loess", se = FALSE, 
+                size = 0.5, alpha = 0.6) +
+    facet_wrap(~primary_domain_name, scales = "free_y", ncol = 2) +
+    scale_color_manual(values = domain_colors) +
+    scale_x_continuous(breaks = seq(2005, 2025, 5)) +
+    scale_y_continuous(labels = comma_format()) +
+    labs(
+      title = "Publication Trends by Research Field Over Time",
+      subtitle = "Trends shown by domain with individual field trajectories",
+      x = "Publication Year",
+      y = "Number of Publications",
+      color = "Domain",
+      caption = "Data: Enhanced Research Publication Dataset (OpenAlex + WoS + Scopus)"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "gray60"),
+      strip.text = element_text(size = 11, face = "bold"),
+      legend.position = "none", # Remove legend since domain is in facet titles
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(color = "gray90", size = 0.5),
+      panel.grid.major.y = element_line(color = "gray90", size = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  
+  return(p1)
+}
+
+# Create detailed field-level plots for each domain
+create_field_detail_plots <- function(dat.plot) {
+  
+  # Get top fields by total publications in each domain
+  top_fields <- dat.plot %>%
+    group_by(primary_domain_name, primary_field_name) %>%
+    summarise(total = sum(total.pubs), .groups = "drop") %>%
+    group_by(primary_domain_name) %>%
+    top_n(6, total) %>%
+    ungroup()
+  
+  # Filter data to top fields only
+  dat_filtered <- dat.plot %>%
+    semi_join(top_fields, by = c("primary_domain_name", "primary_field_name"))
+  
+  # Create separate plots for each domain
+  plot_list <- list()
+  domains <- unique(dat_filtered$primary_domain_name)
+  
+  for(domain in domains) {
+    domain_data <- dat_filtered %>% filter(primary_domain_name == domain)
+    
+    # Get distinct colors for fields within domain
+    n_fields <- length(unique(domain_data$primary_field_name))
+    colors <- brewer.pal(min(n_fields, 11), "Spectral")
+    
+    p <- domain_data %>%
+      ggplot(aes(x = publication_year, y = total.pubs, color = primary_field_name)) +
+      geom_line(linewidth = 1.2, alpha = 0.8) +
+      geom_point(size = 2) +
+      scale_color_manual(values = colors) +
+      scale_x_continuous(breaks = seq(2005, 2025, 5)) +
+      scale_y_continuous(labels = comma_format()) +
+      labs(
+        title = paste("Top Fields in", domain),
+        x = "Publication Year",
+        y = "Number of Publications",
+        color = "Field"
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 14, face = "bold"),
+        legend.position = "bottom",
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.minor = element_blank()
+      ) +
+      guides(color = guide_legend(ncol = 2))
+    
+    plot_list[[domain]] <- p
+  }
+  
+  return(plot_list)
+}
+
+# Create heatmap visualization
+create_heatmap_plot <- function(dat.plot) {
+  
+  # Create a heatmap of publication intensity
+  heatmap_data <- dat.plot %>%
+    group_by(primary_domain_name, primary_field_name) %>%
+    summarise(total_pubs = sum(total.pubs), .groups = "drop") %>%
+    group_by(primary_domain_name) %>%
+    mutate(pct_of_domain = total_pubs / sum(total_pubs) * 100) %>%
+    ungroup()
+  
+  # Keep only top fields per domain for readability
+  top_fields_heatmap <- heatmap_data %>%
+    group_by(primary_domain_name) %>%
+    top_n(8, total_pubs) %>%
+    ungroup()
+  
+  p_heatmap <- top_fields_heatmap %>%
+    ggplot(aes(x = primary_domain_name, y = reorder(primary_field_name, total_pubs), 
+               fill = total_pubs)) +
+    geom_tile(color = "white", size = 0.5) +
+    geom_text(aes(label = comma(total_pubs)), color = "white", size = 3, fontface = "bold") +
+    scale_fill_gradient(low = "lightblue", high = "darkblue", 
+                       labels = comma_format(), name = "Total\nPublications") +
+    labs(
+      title = "Publication Volume by Field and Domain",
+      subtitle = "Top fields shown per domain",
+      x = "Domain",
+      y = "Field"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "gray60"),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 9),
+      panel.grid = element_blank()
+    )
+  
+  return(p_heatmap)
+}
+
+# Execute the visualizations
+main_plot <- create_publication_trends_plot(dat.plot)
+field_plots <- create_field_detail_plots(dat.plot)
+heatmap_plot <- create_heatmap_plot(dat.plot)
+
+# Display main plot
+print(main_plot)
+
+# Display field detail plots
+for(i in 1:length(field_plots)) {
+  print(field_plots[[i]])
+}
+
+# Display heatmap
+print(heatmap_plot)
+
+# Create a summary table
+summary_table <- dat.plot %>%
+  group_by(primary_domain_name, primary_field_name) %>%
+  summarise(
+    total_publications = sum(total.pubs),
+    years_active = n(),
+    avg_annual = round(mean(total.pubs), 1),
+    peak_year = publication_year[which.max(total.pubs)],
+    peak_publications = max(total.pubs),
+    .groups = "drop"
+  ) %>%
+  arrange(primary_domain_name, desc(total_publications))
+
+print("Summary Statistics by Field:")
+print(summary_table)
+
+# Calculate growth rates for fields with sufficient data
+growth_analysis <- dat.plot %>%
+  group_by(primary_domain_name, primary_field_name) %>%
+  arrange(publication_year) %>%
+  summarise(
+    first_year = min(publication_year),
+    last_year = max(publication_year),
+    first_year_pubs = total.pubs[which.min(publication_year)],
+    last_year_pubs = total.pubs[which.max(publication_year)],
+    total_pubs = sum(total.pubs),
+    .groups = "drop"
+  ) %>%
+  filter(last_year - first_year >= 5) %>%  # At least 5 years of data
+  mutate(
+    growth_rate = ((last_year_pubs - first_year_pubs) / first_year_pubs) * 100,
+    annual_growth = growth_rate / (last_year - first_year)
+  ) %>%
+  arrange(desc(annual_growth))
+
+print("Annual Growth Rates by Field (fields with 5+ years of data):")
+print(growth_analysis)
+
+```
+
+
+# How have research areas changed over time?
+
+```{r, echo = F, eval = T, warning = F}
+
+# Indo-Swiss Collaboration Content Evolution Analysis
+# Analyzing changes in research fields and subfields over 2000-2024
+
+# Load required libraries
+library(arrow)
+library(scales)
+library(viridis)
+library(patchwork)
+library(data.table)
+
+# Set theme for consistent plot styling
+theme_set(theme_minimal(base_size = 12))
+
+# Load the dataset
+# Using data.table for faster processing of large dataset
+publications_dt <- as.data.table(read_parquet("Data/publications_full_dataset_2000-2024.parquet"))
+
+# Check the structure and available fields
+cat("Dataset dimensions:", nrow(publications_dt), "rows x", ncol(publications_dt), "columns\n")
+cat("Date range:", min(publications_dt$publication_year, na.rm = TRUE), "-", 
+    max(publications_dt$publication_year, na.rm = TRUE), "\n")
+
+# Check topic classification coverage
+cat("\nTopic classification coverage:\n")
+cat("- Primary field:", sum(!is.na(publications_dt$primary_field_name))/nrow(publications_dt)*100, "%\n")
+cat("- Primary subfield:", sum(!is.na(publications_dt$primary_subfield_name))/nrow(publications_dt)*100, "%\n")
+
+# Create analysis period groupings
+# Group years into 5-year periods for clearer trend visualization
+publications_dt[, period := cut(publication_year, 
+                               breaks = c(1999, 2004, 2009, 2014, 2019, 2024),
+                               labels = c("2000-2004", "2005-2009", "2010-2014", 
+                                        "2015-2019", "2020-2024"),
+                               include.lowest = TRUE)]
+
+# 1. Overall publication growth by field
+field_yearly <- publications_dt[!is.na(primary_field_name) & publication_year >= 2000,
+                                .(count = .N),
+                                by = .(publication_year, primary_field_name)]
+
+# Calculate total publications per year for percentage calculations
+yearly_totals <- publications_dt[publication_year >= 2000, 
+                                 .(total = .N), 
+                                 by = publication_year]
+
+field_yearly <- merge(field_yearly, yearly_totals, by = "publication_year")
+field_yearly[, percentage := count/total * 100]
+
+# Plot 1: Field evolution over time (absolute numbers)
+p1 <- ggplot(field_yearly, aes(x = publication_year, y = count, fill = primary_field_name)) +
+  geom_area(alpha = 0.8) +
+  scale_fill_viridis_d(option = "turbo", name = "Field") +
+  scale_x_continuous(breaks = seq(2000, 2024, 4)) +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Evolution of Indo-Swiss Collaborations by Research Field",
+       subtitle = "Absolute number of publications per year",
+       x = "Year",
+       y = "Number of Publications") + theme_bw() + 
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 9),
+        plot.title = element_text(size = 14, face = "bold"))
+
+# Save plot
+ggsave("plots/field_evolution_absolute.png", p1, width = 12, height = 8, dpi = 300)
+
+# Plot 2: Field evolution over time (percentage)
+p2 <- ggplot(field_yearly, aes(x = publication_year, y = percentage, fill = primary_field_name)) +
+  geom_area(alpha = 0.8) +
+  scale_fill_viridis_d(option = "turbo", name = "Field") +
+  scale_x_continuous(breaks = seq(2000, 2024, 4)) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(title = "Relative Distribution of Research Fields Over Time",
+       subtitle = "Percentage of total publications per year",
+       x = "Year",
+       y = "Percentage of Publications") +theme_bw() + 
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 9),
+        plot.title = element_text(size = 14, face = "bold"))
+
+# Save plot
+ggsave("plots/field_evolution_percentage.png", p2, width = 12, height = 8, dpi = 300)
+
+# 2. Top fields analysis by period
+field_period <- publications_dt[!is.na(primary_field_name) & !is.na(period),
+                               .(count = .N),
+                               by = .(period, primary_field_name)]
+
+# Calculate percentages within each period
+field_period[, period_total := sum(count), by = period]
+field_period[, percentage := count/period_total * 100]
+
+# Get top 10 fields overall
+top_fields <- publications_dt[!is.na(primary_field_name), 
+                             .(total_count = .N), 
+                             by = primary_field_name][order(-total_count)][1:10, primary_field_name]
+
+# Filter for top fields
+field_period_top <- field_period[primary_field_name %in% top_fields]
+
+# Plot 3: Top fields by period
+p3 <- ggplot(field_period_top, aes(x = reorder(primary_field_name, -count), 
+                                   y = percentage, 
+                                   fill = period)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_viridis_d(name = "Period") +
+  coord_flip() +
+  labs(title = "Top 10 Research Fields by Time Period",
+       subtitle = "Percentage of publications within each period",
+       x = "",
+       y = "Percentage of Publications") +theme_bw() + 
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+# Save plot
+ggsave("plots/top_fields_by_period.png", p3, width = 12, height = 8, dpi = 300)
+
+# 3. Subfield analysis for top 5 fields
+# Get top 5 fields
+top_5_fields <- publications_dt[!is.na(primary_field_name), 
+                               .(total_count = .N), 
+                               by = primary_field_name][order(-total_count)][1:5, primary_field_name]
+
+# Analyze subfields within each top field
+subfield_analysis <- publications_dt[primary_field_name %in% top_5_fields & 
+                                    !is.na(primary_subfield_name) & 
+                                    publication_year >= 2000,
+                                   .(count = .N),
+                                   by = .(publication_year, primary_field_name, primary_subfield_name)]
+
+# Create faceted plot for subfield evolution
+p4 <- ggplot(subfield_analysis, aes(x = publication_year, y = count, fill = primary_subfield_name)) +
+  geom_area(alpha = 0.8) +
+  facet_wrap(~ primary_field_name, scales = "free_y", ncol = 2) +
+  scale_fill_viridis_d(option = "mako") +
+  scale_x_continuous(breaks = seq(2000, 2024, 8)) +
+  labs(title = "Subfield Evolution within Top 5 Research Fields",
+       subtitle = "Number of publications per year by subfield",
+       x = "Year",
+       y = "Number of Publications") +theme_bw() + 
+  theme(legend.position = "none",  # Too many subfields for legend
+        strip.text = element_text(size = 11, face = "bold"),
+        plot.title = element_text(size = 14, face = "bold"))
+
+# Save plot
+ggsave("plots/subfield_evolution_top5_fields.png", p4, width = 14, height = 10, dpi = 300)
+
+# 4. Growth rate analysis
+# Calculate compound annual growth rate (CAGR) for each field
+field_growth <- publications_dt[!is.na(primary_field_name) & publication_year %in% c(2000:2004, 2020:2024),
+                               .(count = .N),
+                               by = .(primary_field_name, 
+                                     period_group = ifelse(publication_year <= 2004, "early", "recent"))]
+
+# Reshape for CAGR calculation
+field_growth_wide <- dcast(field_growth, primary_field_name ~ period_group, value.var = "count", fill = 0)
+field_growth_wide[, cagr := ((recent/early)^(1/20) - 1) * 100]
+field_growth_wide[, growth_multiple := recent/early]
+
+# Filter fields with at least 10 publications in early period
+field_growth_significant <- field_growth_wide[early >= 10][order(-cagr)]
+
+# Plot 5: Growth rates
+p5 <- ggplot(field_growth_significant[1:15], 
+             aes(x = reorder(primary_field_name, cagr), y = cagr)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.8) +
+  geom_text(aes(label = paste0(round(cagr, 1), "%")), 
+            hjust = -0.2, size = 3.5) +theme_bw() + 
+  coord_flip() +
+  labs(title = "Compound Annual Growth Rate by Field (2000-2004 vs 2020-2024)",
+       subtitle = "Top 15 fields with highest growth rates (minimum 10 publications in early period)",
+       x = "",
+       y = "CAGR (%)") +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+# Save plot
+ggsave("plots/field_growth_rates.png", p5, width = 12, height = 8, dpi = 300)
+
+# 5. Emerging and declining subfields analysis
+# Compare first and last 5-year periods
+subfield_comparison <- publications_dt[!is.na(primary_subfield_name) & 
+                                     publication_year %in% c(2000:2004, 2020:2024),
+                                     .(count = .N,
+                                       field = first(primary_field_name)),
+                                     by = .(primary_subfield_name,
+                                           period = ifelse(publication_year <= 2004, 
+                                                         "2000-2004", "2020-2024"))]
+
+# Calculate change
+subfield_wide <- dcast(subfield_comparison, primary_subfield_name + field ~ period, 
+                      value.var = "count", fill = 0)
+setnames(subfield_wide, c("2000-2004", "2020-2024"), c("early", "recent"))
+subfield_wide[, change := recent - early]
+subfield_wide[, pct_change := ifelse(early == 0, NA, (recent - early)/early * 100)]
+
+# Identify emerging (didn't exist or very small in early period)
+emerging_subfields <- subfield_wide[early <= 5 & recent >= 40][order(-recent)][1:15]
+
+# Plot 6: Emerging subfields
+p6 <- ggplot(emerging_subfields, aes(x = reorder(primary_subfield_name, recent), y = recent)) +
+  geom_bar(stat = "identity", aes(fill = field), alpha = 0.8) +
+  geom_text(aes(label = recent), hjust = -0.2, size = 3.5) +
+  scale_fill_viridis_d(name = "Field") +
+  coord_flip() +theme_bw() + 
+  labs(title = "Emerging Research Subfields (2020-2024)",
+       subtitle = "Subfields with ≤5 publications in 2000-2004 but ≥20 in 2020-2024",
+       x = "",
+       y = "Number of Publications (2020-2024)") +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+        legend.position = "bottom")
+
+# Save plot
+ggsave("plots/emerging_subfields.png", p6, width = 12, height = 10, dpi = 300)
+
+# 6. Summary statistics table
+# Create summary by period
+summary_stats <- publications_dt[!is.na(primary_field_name) & !is.na(period),
+                                .(total_publications = .N,
+                                  unique_fields = uniqueN(primary_field_name),
+                                  unique_subfields = uniqueN(primary_subfield_name),
+                                  avg_topic_score = mean(primary_topic_score, na.rm = TRUE)),
+                                by = period]
+
+# Add diversity index (Shannon entropy)
+field_diversity <- publications_dt[!is.na(primary_field_name) & !is.na(period),
+                                  .(count = .N),
+                                  by = .(period, primary_field_name)]
+field_diversity[, total := sum(count), by = period]
+field_diversity[, prop := count/total]
+field_diversity[, shannon := -sum(prop * log(prop)), by = period]
+diversity_by_period <- unique(field_diversity[, .(period, shannon)])
+
+summary_stats <- merge(summary_stats, diversity_by_period, by = "period")
+
+# Print summary
+cat("\n\nSummary Statistics by Period:\n")
+print(summary_stats)
+
+# Save summary as CSV
+write.csv(summary_stats, "plots/content_evolution_summary.csv", row.names = FALSE)
+
+# 7. Create combined visualization
+# Combine key plots into one comprehensive figure
+combined_plot <- (p1 / p2) | p3
+
+ggsave("plots/indo_swiss_content_evolution_combined.png", 
+       combined_plot, width = 20, height = 12, dpi = 300)
+
+cat("\n\nAnalysis complete! All plots saved to plots/ folder.\n")
+cat("Key findings will be visible in the generated visualizations.\n")
+
+```
+
+
