@@ -958,7 +958,7 @@ cat("\n✓ Enhanced dataset saved as 'paper.details.oa.final'\n")
 ```
 
 
-```{r Add in author and institution information, echo = F, eval = F}
+```{r Add in author and institution information, echo = F, eval = T}
 
 authors = read_parquet('Data/authorships_combined_2000_2024.parquet')
 # Two-step processing: 5.4M row flat dataset -> 24K aggregated dataset
@@ -1097,37 +1097,69 @@ print(sample_rows[, .(work_id, display_name, institutions_with_country, author_c
 # Save the flat 5.4M row dataset as parquet
 print("\nSaving flat processed dataset as parquet...")
 library(arrow)
-write_parquet(authors_processed, "authors_processed_flat.parquet")
+write_parquet(authors_processed, "Data/authors_processed_flat.parquet")
 
-print("\n--------------------------------------"))
-print("Starting Step 2: Aggregating to 24K publication-level dataset...")
+# New: Expand affiliations to include inst_id and ROR at the row level (work_id × author_id × institution)
+print("\nExpanding affiliations to work_id × inst_id with ROR and country...")
+author_inst_expanded <- authors_processed[!is.na(affiliations) & affiliations != "" & affiliations != "[]", {
+  parsed <- NULL
+  try(parsed <- jsonlite::fromJSON(affiliations), silent = TRUE)
+  if (is.null(parsed)) {
+    data.table(inst_id = character(0), ror = character(0), inst_name = character(0), country_code = character(0), institution_with_country = character(0))
+  } else if (is.data.frame(parsed)) {
+    dt <- data.table(
+      inst_id = if ("id" %in% names(parsed)) parsed$id else if ("inst_id" %in% names(parsed)) parsed$inst_id else NA_character_,
+      ror = if ("ror" %in% names(parsed)) parsed$ror else NA_character_,
+      inst_name = parsed$display_name,
+      country_code = parsed$country_code
+    )
+    dt[, institution_with_country := ifelse(!is.na(inst_name) & inst_name != "" & !is.na(country_code) & country_code != "", paste0(inst_name, ", ", country_code), inst_name)]
+    dt
+  } else if (is.list(parsed) && "display_name" %in% names(parsed)) {
+    data.table(
+      inst_id = if (!is.null(parsed$id)) parsed$id else if (!is.null(parsed$inst_id)) parsed$inst_id else NA_character_,
+      ror = if (!is.null(parsed$ror)) parsed$ror else NA_character_,
+      inst_name = parsed$display_name,
+      country_code = parsed$country_code,
+      institution_with_country = if (!is.na(parsed$display_name) && parsed$display_name != "" && !is.na(parsed$country_code) && parsed$country_code != "") paste0(parsed$display_name, ", ", parsed$country_code) else parsed$display_name
+    )
+  } else {
+    data.table(inst_id = character(0), ror = character(0), inst_name = character(0), country_code = character(0), institution_with_country = character(0))
+  }
+}, by = .(work_id, author_id, display_name)]
+
+# Create the publication-level summary using expanded institutions
+print("\n--------------------------------------")
+print("Starting Step 2: Aggregating to 24K publication-level dataset with inst_id and ROR...")
 start_time2 <- Sys.time()
 
-# Step 2: Aggregate to publication level
-publication_summary <- authors_processed[, {
-  # Get all non-NA authors
+# Base author summary (authors and counts) from authors_processed
+publication_summary_base <- authors_processed[, {
   valid_authors <- display_name[!is.na(display_name) & display_name != ""]
-  
-  # Get all non-NA institutions with countries and make them unique
-  valid_institutions <- institutions_with_country[!is.na(institutions_with_country) & institutions_with_country != ""]
-  # Split, flatten, and get unique institutions
-  all_institutions <- unlist(strsplit(valid_institutions, "; "))
-  unique_institutions <- unique(all_institutions[all_institutions != ""])
-  
-  # Get all countries mentioned by any author for this paper
-  all_countries <- unlist(strsplit(author_countries[!is.na(author_countries) & author_countries != ""], ", "))
-  unique_countries <- unique(all_countries[all_countries != ""])
-  
   list(
-    authors_combined = if(length(valid_authors) > 0) paste(valid_authors, collapse = "; ") else NA_character_,
-    institutions_combined = if(length(unique_institutions) > 0) paste(unique_institutions, collapse = "; ") else NA_character_,
-    countries_in_paper = if(length(unique_countries) > 0) paste(sort(unique_countries), collapse = ", ") else NA_character_,
+    authors_combined = if (length(valid_authors) > 0) paste(valid_authors, collapse = "; ") else NA_character_,
     n_authors = .N,
     n_corresponding = sum(is_corresponding, na.rm = TRUE),
     n_authors_with_orcid = sum(!is.na(orcid)),
-    n_authors_with_affiliations = sum(!is.na(institutions_with_country))
+    n_authors_with_affiliations = sum(!is.na(affiliations) & affiliations != "" & affiliations != "[]")
   )
 }, by = work_id]
+
+# Institution and country aggregates from the expanded table
+inst_agg <- author_inst_expanded[, {
+  unique_inst_names <- unique(na.omit(institution_with_country))
+  unique_countries <- unique(na.omit(country_code[country_code != ""]))
+  unique_inst_ids <- unique(na.omit(inst_id))
+  unique_ror <- unique(na.omit(ror))
+  list(
+    institutions_combined = if (length(unique_inst_names) > 0) paste(unique_inst_names, collapse = "; ") else NA_character_,
+    countries_in_paper = if (length(unique_countries) > 0) paste(sort(unique_countries), collapse = ", ") else NA_character_,
+    institution_ids_combined = if (length(unique_inst_ids) > 0) paste(unique_inst_ids, collapse = "; ") else NA_character_,
+    ror_ids_combined = if (length(unique_ror) > 0) paste(unique_ror, collapse = "; ") else NA_character_
+  )
+}, by = work_id]
+
+publication_summary <- merge(publication_summary_base, inst_agg, by = "work_id", all.x = TRUE)
 
 end_time2 <- Sys.time()
 print(paste("Step 2 completed in:", round(difftime(end_time2, start_time2, units = "secs"), 2), "seconds"))
@@ -1138,7 +1170,7 @@ print("\nSample of aggregated results:")
 sample_pubs <- publication_summary[!is.na(institutions_combined)][1:2]
 print(sample_pubs)
 
-publication_summary = publication_summary %>% mutate(work_id = str_remove_all(work_id,'https://openalex\\.org/'))
+publication_summary = publication_summary %>% mutate(work_id = stringr::str_remove_all(work_id,'https://openalex\\.org/'))
 
 # Show a specific example to verify the processing
 print("\nDetailed example of one publication:")
@@ -1150,11 +1182,18 @@ print(example_authors[, .(display_name, institutions_with_country, author_countr
 print("Aggregated result:")
 print(publication_summary[work_id == example_work])
 
-# Save the aggregated 24K dataset as parquet
+# Save the aggregated 24K dataset as parquet (with IDs)
 print("\nSaving aggregated publication dataset as parquet...")
-write_parquet(publication_summary, "publications_with_institutions_countries.parquet")
+write_parquet(publication_summary, "Data/publications_with_institutions_countries.parquet")
 
-paper.details.2 = paper.details.oa.final %>% left_join(publication_summary %>% select(work_id, authors = authors_combined, institutions = institutions_combined, countries = countries_in_paper, nAuthors = n_authors), by = 'work_id')
+# Create and save normalized work_id × inst_id table for SQLite
+work_institution_links <- unique(author_inst_expanded[!is.na(inst_id) & inst_id != "", .(work_id, inst_id, institution_name = inst_name, ror, country_code)])
+# Normalize work_id to short form to match other parquet files
+work_institution_links[, work_id := stringr::str_remove_all(work_id,'https://openalex\\.org/')]
+print("\nSaving work_id × inst_id links as parquet...")
+write_parquet(work_institution_links, "Data/work_institution_links.parquet")
+
+paper.details.2 = paper.details.oa.final %>% left_join(publication_summary %>% select(work_id, authors = authors_combined, institutions = institutions_combined, countries = countries_in_paper, nAuthors = n_authors, institution_ids = institution_ids_combined, ror_ids = ror_ids_combined), by = 'work_id')
 
 paper.details.2 = paper.details.2 %>% left_join(missing_oa %>% select(doi, authors1 = `author full names`, institutions1 = `affiliations`,nAuthors1 = nAuthors), by = 'doi') %>% as.data.table()
 paper.details.2[!is.na(authors1), authors := authors1][!is.na(authors1), institutions := institutions1][!is.na(authors1), nAuthors := nAuthors1]
@@ -1211,7 +1250,7 @@ write_parquet(institutional_relationships, "Data/institutional_relationships_IN_
 openxlsx::write.xlsx(institutional_relationships %>% select(institution_name, country_code, n_publications, n_authors), "Data/institutional_relationships_IN_CH.xlsx")
 
 # Summary statistics
-print("\n--------------------------------------"))
+print("\n--------------------------------------")
 print("PROCESSING SUMMARY:")
 print(paste("Original rows:", nrow(authors)))
 print(paste("Processed flat rows:", nrow(authors_processed)))
