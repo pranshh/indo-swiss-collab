@@ -192,3 +192,28 @@ Quality/consistency:
 
 ---
 
+```r
+library(arrow)
+library(DBI)
+library(RSQLite)
+library(dplyr)
+library(vctrs)
+library(purrr)
+
+describe_parquet <- function(path) {
+  cat("\n=== ", path, " ===\n", sep = "")
+  dt <- arrow::read_parquet(path)
+  cat("Rows:", nrow(dt), "\n")
+  cat("Columns:", ncol(dt), "\n")
+  tibble(name = names(dt), type = map_chr(dt, vctrs::vec_ptype_full))
+}
+
+# Parquet assets
+describe_parquet('Data/publications_full_dataset_2000-2024.parquet')
+describe_parquet('Data/authors_processed_flat.parquet')
+describe_parquet('Data/authors_summary_with_lists.parquet')
+describe_parquet('Data/publications_with_institutions_countries.parquet')
+describe_parquet('Data/work_institution_links.parquet')
+describe_parquet('Data/institutional_relationships_IN_CH.parquet')
+describe_parquet('Data/work_topic_links.parquet')
+```
