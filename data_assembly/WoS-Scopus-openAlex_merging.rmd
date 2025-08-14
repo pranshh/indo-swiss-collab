@@ -687,6 +687,63 @@ paper.details.oa <- paper.details.oa %>% select(-topics)
 print("Dataset updated with primary topic information!")
 ```
 
+```{r Extracting topic information - full mapping, echo = F, warning=F}
+ print("Building work-topic mapping (all matched topics)...")
+ 
+ # Re-read source with topics JSON to preserve original data
+ oa_with_topics <- read_parquet('Data/publication_combined_2000_2024.parquet') %>%
+  select(work_id, topics)
+ 
+ # Parser to extract all topic-level entries with scores and primary flag
+ parse_topics_all <- function(topics_json) {
+  if (is.na(topics_json) || topics_json == "" || is.null(topics_json)) {
+   return(tibble())
+  }
+  
+  tryCatch({
+   topics_df <- jsonlite::fromJSON(topics_json)
+   if (is.null(topics_df) || nrow(topics_df) == 0) return(tibble())
+   topics_only <- topics_df[topics_df$type == "topic", ]
+   if (nrow(topics_only) == 0) return(tibble())
+   tibble(
+    topic_id = topics_only$id,
+    topic_name = topics_only$display_name,
+    topic_score = topics_only$score,
+    is_primary = topics_only$i == 1
+   )
+  }, error = function(e) {
+   tibble()
+  })
+ }
+ 
+ # Build long mapping work_id × topic_id with scores
+ work_topic_links <- purrr::map2_dfr(
+  oa_with_topics$topics,
+  oa_with_topics$work_id,
+  function(tjson, wid) {
+   df <- parse_topics_all(tjson)
+   if (nrow(df) == 0) return(tibble())
+   df %>% mutate(work_id = wid) %>% select(work_id, topic_id, topic_name, topic_score, is_primary)
+  }
+ )
+ 
+ # Normalize work_id to short form (match other parquet files)
+ if (nrow(work_topic_links) > 0) {
+  work_topic_links <- work_topic_links %>%
+   mutate(work_id = stringr::str_remove_all(work_id,'https://openalex\\.org/'))
+ }
+ 
+ # Save mapping as parquet
+ write_parquet(work_topic_links, 'Data/work_topic_links.parquet')
+ 
+ # Brief summary
+ cat("Total topic links:", nrow(work_topic_links), "\n")
+ cat("Unique works with topics:", length(unique(work_topic_links$work_id)), "\n")
+ cat("Unique topics:", length(unique(work_topic_links$topic_id)), "\n")
+ 
+ print("Work-topic mapping saved to Data/work_topic_links.parquet")
+```
+
 ```{r Data Enhancement while merging, echo = F}
 # Function to get longer text between two columns
 get_longer_text <- function(col1, col2) {
@@ -1100,33 +1157,116 @@ library(arrow)
 write_parquet(authors_processed, "Data/authors_processed_flat.parquet")
 
 # New: Expand affiliations to include inst_id and ROR at the row level (work_id × author_id × institution)
-print("\nExpanding affiliations to work_id × inst_id with ROR and country...")
-author_inst_expanded <- authors_processed[!is.na(affiliations) & affiliations != "" & affiliations != "[]", {
+print("\nExpanding affiliations to work_id × inst_id with ROR and country (batched with checkpointing)...")
+
+# Helper that expands a single affiliations JSON string into a standardized table
+expand_one_affiliation <- function(affiliations) {
   parsed <- NULL
   try(parsed <- jsonlite::fromJSON(affiliations), silent = TRUE)
   if (is.null(parsed)) {
-    data.table(inst_id = character(0), ror = character(0), inst_name = character(0), country_code = character(0), institution_with_country = character(0))
+    return(data.table(inst_id = character(0), ror = character(0), inst_name = character(0), country_code = character(0), institution_with_country = character(0)))
   } else if (is.data.frame(parsed)) {
     dt <- data.table(
-      inst_id = if ("id" %in% names(parsed)) parsed$id else if ("inst_id" %in% names(parsed)) parsed$inst_id else NA_character_,
-      ror = if ("ror" %in% names(parsed)) parsed$ror else NA_character_,
-      inst_name = parsed$display_name,
-      country_code = parsed$country_code
+      inst_id = if ("id" %in% names(parsed)) parsed$id else if ("inst_id" %in% names(parsed)) parsed$inst_id else rep(NA_character_, nrow(parsed)),
+      ror = if ("ror" %in% names(parsed)) parsed$ror else rep(NA_character_, nrow(parsed)),
+      inst_name = if ("display_name" %in% names(parsed)) parsed$display_name else rep(NA_character_, nrow(parsed)),
+      country_code = if ("country_code" %in% names(parsed)) parsed$country_code else rep(NA_character_, nrow(parsed))
     )
+    # Force character types to avoid logical-typed NA
+    dt[, `:=`(
+      inst_id = as.character(inst_id),
+      ror = as.character(ror),
+      inst_name = as.character(inst_name),
+      country_code = as.character(country_code)
+    )]
     dt[, institution_with_country := ifelse(!is.na(inst_name) & inst_name != "" & !is.na(country_code) & country_code != "", paste0(inst_name, ", ", country_code), inst_name)]
-    dt
+    return(dt)
   } else if (is.list(parsed) && "display_name" %in% names(parsed)) {
-    data.table(
+    dt <- data.table(
       inst_id = if (!is.null(parsed$id)) parsed$id else if (!is.null(parsed$inst_id)) parsed$inst_id else NA_character_,
       ror = if (!is.null(parsed$ror)) parsed$ror else NA_character_,
-      inst_name = parsed$display_name,
-      country_code = parsed$country_code,
-      institution_with_country = if (!is.na(parsed$display_name) && parsed$display_name != "" && !is.na(parsed$country_code) && parsed$country_code != "") paste0(parsed$display_name, ", ", parsed$country_code) else parsed$display_name
+      inst_name = if (!is.null(parsed$display_name)) parsed$display_name else NA_character_,
+      country_code = if (!is.null(parsed$country_code)) parsed$country_code else NA_character_
     )
+    dt[, `:=`(
+      inst_id = as.character(inst_id),
+      ror = as.character(ror),
+      inst_name = as.character(inst_name),
+      country_code = as.character(country_code)
+    )]
+    dt[, institution_with_country := ifelse(!is.na(inst_name) & inst_name != "" & !is.na(country_code) & country_code != "", paste0(inst_name, ", ", country_code), inst_name)]
+    return(dt)
   } else {
-    data.table(inst_id = character(0), ror = character(0), inst_name = character(0), country_code = character(0), institution_with_country = character(0))
+    return(data.table(inst_id = character(0), ror = character(0), inst_name = character(0), country_code = character(0), institution_with_country = character(0)))
   }
-}, by = .(work_id, author_id, display_name)]
+}
+
+# Prepare rows to process and batching
+aff_rows <- authors_processed[!is.na(affiliations) & affiliations != "" & affiliations != "[]"]
+dir.create("Data/tmp_author_inst_expanded", recursive = TRUE, showWarnings = FALSE)
+
+chunk_size <- 250000L
+total_rows <- nrow(aff_rows)
+num_batches <- ceiling(total_rows / chunk_size)
+
+# Determine resume point based on existing parts
+existing_parts <- list.files("Data/tmp_author_inst_expanded", pattern = "^part_\\d+\\.parquet$", full.names = TRUE)
+existing_idx <- as.integer(gsub("[^0-9]", "", basename(existing_parts)))
+start_batch <- if (length(existing_idx) == 0 || all(is.na(existing_idx))) 1L else (max(existing_idx, na.rm = TRUE) + 1L)
+
+print(paste0("Total rows to process: ", format(total_rows, big.mark = ",")))
+print(paste0("Batch size: ", format(chunk_size, big.mark = ","), "; total batches: ", num_batches))
+if (start_batch > 1L) {
+  print(paste0("Resuming from batch ", start_batch, " (", start_batch - 1L, " parts already exist)"))
+}
+
+progress_log_path <- file.path("Data/tmp_author_inst_expanded", "progress.csv")
+if (!file.exists(progress_log_path)) {
+  fwrite(data.table(batch = integer(), start_row = integer(), end_row = integer(), n_rows_out = integer(), status = character(), t_start = character(), t_end = character()), progress_log_path)
+}
+
+for (b in seq.int(start_batch, num_batches)) {
+  t0 <- Sys.time()
+  start_row <- (b - 1L) * chunk_size + 1L
+  end_row <- min(b * chunk_size, total_rows)
+  print(paste0("Processing batch ", b, "/", num_batches, " (rows ", start_row, "-", end_row, ")..."))
+  chunk <- aff_rows[start_row:end_row]
+  out_file <- file.path("Data/tmp_author_inst_expanded", sprintf("part_%05d.parquet", b))
+  status <- "ok"
+  n_out <- 0L
+  tryCatch({
+    # Expand this chunk
+    expanded_chunk <- chunk[, expand_one_affiliation(affiliations), by = .(work_id, author_id, display_name)]
+    # Ensure stable column order and types
+    setcolorder(expanded_chunk, c("work_id", "author_id", "display_name", "inst_id", "ror", "inst_name", "country_code", "institution_with_country"))
+    expanded_chunk[, `:=`(
+      inst_id = as.character(inst_id),
+      ror = as.character(ror),
+      inst_name = as.character(inst_name),
+      country_code = as.character(country_code),
+      institution_with_country = as.character(institution_with_country)
+    )]
+    n_out <- nrow(expanded_chunk)
+    arrow::write_parquet(expanded_chunk, out_file)
+  }, error = function(e) {
+    status <<- paste0("error: ", conditionMessage(e))
+    warning(status)
+  })
+  t1 <- Sys.time()
+  fwrite(data.table(batch = b, start_row = start_row, end_row = end_row, n_rows_out = n_out, status = status, t_start = as.character(t0), t_end = as.character(t1)), progress_log_path, append = TRUE)
+}
+
+# Combine parts into a single in-memory table for downstream steps
+print("Collecting all batch results into memory...")
+part_files <- list.files("Data/tmp_author_inst_expanded", pattern = "^part_\\d+\\.parquet$", full.names = TRUE)
+author_inst_expanded <- data.table::rbindlist(lapply(part_files, arrow::read_parquet), use.names = TRUE, fill = TRUE)
+author_inst_expanded[, `:=`(
+  inst_id = as.character(inst_id),
+  ror = as.character(ror),
+  inst_name = as.character(inst_name),
+  country_code = as.character(country_code),
+  institution_with_country = as.character(institution_with_country)
+)]
 
 # Create the publication-level summary using expanded institutions
 print("\n--------------------------------------")
