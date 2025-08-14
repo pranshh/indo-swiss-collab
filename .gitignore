@@ -13,3 +13,7 @@
 .rdata
 .sqlite
 .docx
+Data/
+prep-tables/
+plots/
+.sqlite
