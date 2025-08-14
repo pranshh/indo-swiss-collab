@@ -8,3 +8,8 @@
 .RProj
 .RDataTmp
 .html
+.parquet
+.csv
+.rdata
+.sqlite
+.docx
