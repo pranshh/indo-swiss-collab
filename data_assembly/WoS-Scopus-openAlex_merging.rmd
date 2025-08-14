@@ -1346,33 +1346,21 @@ write_parquet(paper.details.2, 'Data/publications_full_dataset_2000-2024.parquet
 print("\nCreating institutional relationship table for IN and CH...")
 start_time3 <- Sys.time()
 
-# Extract all institutions from the processed data that are in India or Switzerland
-institutions_expanded <- authors_processed[!is.na(institutions_with_country), {
-  # Split the institutions string and create one row per institution
-  inst_list <- strsplit(institutions_with_country, "; ")[[1]]
-  if (length(inst_list) > 0) {
-    data.table(institution_with_country = inst_list)
-  } else {
-    data.table(institution_with_country = character(0))
-  }
-}, by = .(work_id, display_name)]
+# Build from expanded author-institution table to retain inst_id and ROR
+institutions_in_ch <- author_inst_expanded[
+  !is.na(inst_id) & inst_id != "" & country_code %in% c("IN", "CH"),
+  .(work_id, display_name, inst_id, institution_name = inst_name, ror, country_code)
+]
 
-# Extract country codes and filter for India and Switzerland
-institutions_expanded[, country_code := sub(".*,\\s*([A-Z]{2})$", "\\1", institution_with_country)]
-institutions_expanded[, institution_name := sub(",\\s*[A-Z]{2}$", "", institution_with_country)]
-
-# Filter for only India (IN) and Switzerland (CH)
-institutions_in_ch <- institutions_expanded[country_code %in% c("IN", "CH")]
-
-# Create the institutional relationship table
+# Create the institutional relationship table (grouped by inst_id + name + country + ror)
 institutional_relationships <- institutions_in_ch[, {
   list(
-    work_ids = paste(sort(unique(work_id)), collapse = "; "),
-    n_publications = length(unique(work_id)),
-    n_authors = length(unique(display_name)),
+    work_ids = paste(sort(unique(stringr::str_remove_all(work_id, 'https://openalex\\.org/'))), collapse = "; "),
+    n_publications = uniqueN(work_id),
+    n_authors = uniqueN(display_name),
     author_names = paste(sort(unique(display_name)), collapse = "; ")
   )
-}, by = .(institution_name, country_code)]
+}, by = .(inst_id, institution_name, country_code, ror)]
 
 # Sort by country and number of publications
 institutional_relationships <- institutional_relationships[order(country_code, -n_publications)]
@@ -1387,7 +1375,7 @@ print(head(institutional_relationships[, .(institution_name, country_code, n_pub
 # Save institutional relationships as parquet
 print("\nSaving institutional relationship table as parquet...")
 write_parquet(institutional_relationships, "Data/institutional_relationships_IN_CH.parquet")
-openxlsx::write.xlsx(institutional_relationships %>% select(institution_name, country_code, n_publications, n_authors), "Data/institutional_relationships_IN_CH.xlsx")
+openxlsx::write.xlsx(institutional_relationships %>% select(inst_id, institution_name, country_code, n_publications, n_authors), "Data/institutional_relationships_IN_CH.xlsx")
 
 # Summary statistics
 print("\n--------------------------------------")
@@ -1409,6 +1397,8 @@ print("3. institutional_relationships_IN_CH.parquet (unique IN/CH institutions w
 print("\nInstitutional relationship table columns:")
 print("- institution_name: Clean institution name")
 print("- country_code: IN or CH")
+print("- inst_id: OpenAlex institution ID")
+print("- ror: ROR ID if available")
 print("- work_ids: Semicolon-separated list of publication IDs")
 print("- n_publications: Number of publications from this institution")
 print("- n_authors: Number of unique authors from this institution")
@@ -1559,12 +1549,13 @@ create_author_summary_fast <- function(authors_processed) {
   # Add country lists  
   final_summary <- merge(final_summary, country_lists, by = "author_id", all.x = TRUE)
   
-  # Add collaboration status (categorical variable)
-  final_summary <- merge(final_summary, collaboration_data[, .(author_id, collab_status)], 
+  # Add collaboration status (categorical variable) and boolean flag
+  final_summary <- merge(final_summary, collaboration_data[, .(author_id, collab_status, has_india_swiss_collab)], 
                          by = "author_id", all.x = TRUE)
   
-  # Fill missing collaboration status with "None"
+  # Fill missing collaboration status/flag
   final_summary[is.na(collab_status), collab_status := "None"]
+  final_summary[is.na(has_india_swiss_collab), has_india_swiss_collab := FALSE]
   
   # Handle missing list columns
   final_summary[is.na(institution_work_counts), institution_work_counts := list(list(data.table(institutions = character(0), n_works = integer(0))))]
@@ -1591,7 +1582,7 @@ authors_summ <- create_author_summary_fast(authors_processed)
 
 # Display summary statistics
 print(paste("Created summary for", nrow(authors_summ), "unique authors"))
-print(paste("Authors with India-Swiss collaboration:", sum(authors_summ$has_india_swiss_collab)))
+print(paste("Authors with India-Swiss collaboration:", sum(authors_summ$has_india_swiss_collab, na.rm = TRUE)))
 
 # Show examples - optimized display
 print("\nTop 3 authors by number of works:")
@@ -1656,14 +1647,14 @@ print(paste("Total authors:", nrow(authors_summ)))
 print(paste("Authors with >10 works:", sum(authors_summ$nWorks > 10)))
 print(paste("Authors with >50 works:", sum(authors_summ$nWorks > 50)))
 print(paste("Authors with ORCID:", sum(!is.na(authors_summ$orcid))))
-print(paste("Authors with India-Swiss collaboration:", sum(authors_summ$has_india_swiss_collab)))
+print(paste("Authors with India-Swiss collaboration:", sum(authors_summ$has_india_swiss_collab, na.rm = TRUE)))
 
 # Fast work distribution
 work_breaks <- c(1, 2, 6, 11, 26, 51, Inf)
 work_labels <- c("1 work", "2-5 works", "6-10 works", "11-25 works", "26-50 works", ">50 works")
 authors_summ[, work_category := cut(nWorks, breaks = work_breaks, labels = work_labels, right = FALSE)]
 
-work_distribution <- authors_summ[, .N, by = work_cfategory][order(work_category)]
+work_distribution <- authors_summ[, .N, by = work_category][order(work_category)]
 work_distribution[, percentage := round(N / sum(N) * 100, 1)]
 
 print("\nWork distribution among authors:")
