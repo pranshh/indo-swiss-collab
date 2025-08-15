@@ -1,20 +1,19 @@
----
-output:
-  word_document: default
-  html_document: default
----
+# Indo-Swiss Research Collaboration Database — Comprehensive Metadata (v1)
 
-
-
-# Indo-Swiss Research Collaboration Database — Comprehensive Metadata (v2)
+**Author:** Siddharth Bharath, Pranshu Jaiswal  
+**Contact:** siddharth.bharath@protonmail.com  
+**GitHub Repository:** [indo-swiss-collab](https://github.com/siddharth-bharath/indo-swiss-collab)  
+**Date Generated:** 2025-08-15
 
 ## Overview
-This document reflects the latest (past 2–3 days) updates from the WoS–Scopus–OpenAlex merge workflow and the relational database creation. It covers:
+This document contains metadata of the products of Phase 1 of the Indo Swiss Research Collaboration Database, last edited on 15 August 2025. The database covers the time range of 2000-2024. 
 
-- All new/updated Parquet deliverables and their schemas
+Data is stored in Parquet files, which are a modern, efficient way to save large tables of data. Parquet files are like digital spreadsheets, but they are specially designed to be fast and compact, making it easy to store and analyze big datasets. They can be opened and used by many data tools and programming languages.
+
+It covers:
+
+- All Parquet deliverables and their schemas
 - Topics hierarchy from OpenAlex and storage
-- Complete relational database schema in `indo_swiss_research.db` (tables, views, keys)
-- A high-level ER diagram
 - Short R helpers you can run to verify schemas
 
 All file paths are relative to the project root.
@@ -101,7 +100,7 @@ Columns:
 - `author_id`: OpenAlex author id
 - `name`: author display name
 - `orcid`: ORCID
-- `nWorks`: number of unique works
+- `nWorks`: number of unique works from that author in this database.
 - `n_corresponding_works`: number of works where corresponding
 - `total_institutions`: count of unique institutions across works
 - `total_countries`: count of unique countries across works
@@ -123,8 +122,18 @@ Columns:
 - `n_authors`: number of unique authors
 - `author_names`: semicolon-separated author display names
 
-### 5. `Data/publications_with_institutions_countries.parquet`
-Publication-level rollups from affiliation expansion.
+### 5. `Data/institutional_list_IN_CH.xlsx`
+Complete list of all Swiss and Indian institutions in this database (2,690 entries). Simplified institution-level summary table.
+
+Columns:
+- `inst_id`: OpenAlex institution id
+- `institution_name`: cleaned institution name
+- `country_code`: `IN` or `CH`
+- `n_publications`: number of unique works
+- `n_authors`: number of unique authors
+
+### 6. `Data/publications_with_institutions_countries.parquet`
+Aggregated work-level summary table providing per-work counts and combined lists of authors, affiliations, institutions, and countries, derived from expanded author–affiliation data. Useful for quickly analyzing the composition and international scope of each work.
 
 Columns:
 - `work_id`
@@ -138,8 +147,8 @@ Columns:
 - `institution_ids_combined`: semicolon-separated OpenAlex institution ids
 - `ror_ids_combined`: semicolon-separated ROR ids
 
-### 6. `Data/work_institution_links.parquet`
-Normalized many-to-many mapping for loading into SQLite.
+### 7. `Data/work_institution_links.parquet`
+Normalized many-to-many mapping for later creation of relational database.
 
 Columns:
 - `work_id`: OpenAlex work id (short form)
@@ -148,7 +157,7 @@ Columns:
 - `ror`: ROR id
 - `country_code`: ISO country code
 
-### 7. `Data/work_topic_links.parquet`
+### 8. `Data/work_topic_links.parquet`
 All OpenAlex topics matched to each work (long format).
 
 Columns:
@@ -191,6 +200,8 @@ Quality/consistency:
 - Funding details and text enhanced by longest-source heuristic; keywords merged from all sources.
 
 ---
+
+Run this R Script below to check the details of the files.
 
 ```r
 library(arrow)

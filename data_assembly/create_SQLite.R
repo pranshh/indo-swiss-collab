@@ -6,6 +6,7 @@
 # - Uses inst_id (OpenAlex) and ror for institutions across all relationships
 # - Adds work_institutions and work_topics from parquet mappings
 # - Removes legacy publication_institutions
+# - Converts primary keys to integer fields (strips letter prefixes)
 
 # ===== 0. LIBS & PATHS =====
 
@@ -23,6 +24,36 @@ library(dbplyr)
 data_path <- "Data/"
 db_path <- "indo_swiss_research.db"
 topics_db_path <- "openAlex_topics.sqlite"
+
+# Helper function to strip letter prefix and convert to numeric (64-bit)
+strip_id_prefix <- function(id_vector, prefix_letter) {
+  # Remove the letter prefix and convert to numeric (64-bit)
+  # Handle NA and empty values
+  result <- rep(NA_real_, length(id_vector))
+  valid_indices <- !is.na(id_vector) & id_vector != ""
+  
+  if (any(valid_indices)) {
+	id_vector[valid_indices] = str_remove(id_vector[valid_indices], "https://openalex.org/")
+    # Remove the prefix letter and convert to numeric
+    numeric_part <- str_remove(id_vector[valid_indices], paste0("^", prefix_letter))
+    converted_values <- as.numeric(numeric_part)
+    
+    # Check for overflow (NA values that weren't NA before conversion)
+    original_valid <- id_vector[valid_indices]
+    overflow_check <- is.na(converted_values) & !is.na(original_valid) & original_valid != ""
+    
+    if (any(overflow_check)) {
+      overflow_examples <- original_valid[overflow_check][1:min(5, sum(overflow_check))]
+      stop(paste("OVERFLOW DETECTED: The following", prefix_letter, "IDs could not be converted to numeric:",
+                 paste(overflow_examples, collapse = ", "),
+                 "\nThis indicates the numbers are too large for 64-bit storage."))
+    }
+    
+    result[valid_indices] <- converted_values
+  }
+  
+  return(result)
+}
 
 read_parquet_safe <- function(file_path) {
 	tryCatch({
@@ -59,7 +90,7 @@ message("Creating database schema...")
 
 create_table_safe(con, "domains", "
 CREATE TABLE domains (
-	domain_id TEXT PRIMARY KEY,
+	domain_id INTEGER PRIMARY KEY,
 	display_name TEXT NOT NULL,
 	description TEXT,
 	works_count INTEGER DEFAULT 0,
@@ -69,11 +100,11 @@ CREATE TABLE domains (
 
 create_table_safe(con, "fields", "
 CREATE TABLE fields (
-	field_id TEXT PRIMARY KEY,
+	field_id INTEGER PRIMARY KEY,
 	display_name TEXT NOT NULL,
 	description TEXT,
 	works_count INTEGER DEFAULT 0,
-	domain_id TEXT,
+	domain_id INTEGER,
 	created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (domain_id) REFERENCES domains(domain_id)
@@ -81,11 +112,11 @@ CREATE TABLE fields (
 
 create_table_safe(con, "subfields", "
 CREATE TABLE subfields (
-	subfield_id TEXT PRIMARY KEY,
+	subfield_id INTEGER PRIMARY KEY,
 	display_name TEXT NOT NULL,
 	description TEXT,
 	works_count INTEGER DEFAULT 0,
-	field_id TEXT,
+	field_id INTEGER,
 	created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (field_id) REFERENCES fields(field_id)
@@ -93,11 +124,11 @@ CREATE TABLE subfields (
 
 create_table_safe(con, "topics", "
 CREATE TABLE topics (
-	topic_id TEXT PRIMARY KEY,
+	topic_id INTEGER PRIMARY KEY,
 	display_name TEXT NOT NULL,
 	description TEXT,
 	works_count INTEGER DEFAULT 0,
-	subfield_id TEXT,
+	subfield_id INTEGER,
 	created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (subfield_id) REFERENCES subfields(subfield_id)
@@ -105,7 +136,7 @@ CREATE TABLE topics (
 
 create_table_safe(con, "works", "
 CREATE TABLE works (
-	work_id TEXT PRIMARY KEY,
+	work_id INTEGER PRIMARY KEY,
 	doi TEXT,
 	title TEXT,
 	publication_date TEXT,
@@ -122,13 +153,17 @@ CREATE TABLE works (
 	last_page TEXT,
 	pdf_url TEXT,
 	landing_page_url TEXT,
+	author_keywords TEXT,
+	keywords TEXT,
+	index_keywords_scopus TEXT,
+	keywords_plus_wos TEXT,
 	created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )")
 
 create_table_safe(con, "authors", "
 CREATE TABLE authors (
-	author_id TEXT PRIMARY KEY,
+	author_id INTEGER PRIMARY KEY,
 	display_name TEXT NOT NULL,
 	orcid TEXT,
 	works_count INTEGER DEFAULT 0,
@@ -145,7 +180,7 @@ CREATE TABLE authors (
 
 create_table_safe(con, "institutions", "
 CREATE TABLE institutions (
-	inst_id TEXT PRIMARY KEY,
+	inst_id INTEGER PRIMARY KEY,
 	ror TEXT,
 	display_name TEXT NOT NULL,
 	country_code TEXT,
@@ -165,8 +200,8 @@ CREATE TABLE institutions (
 
 create_table_safe(con, "work_authors", "
 CREATE TABLE work_authors (
-	work_id TEXT,
-	author_id TEXT,
+	work_id INTEGER,
+	author_id INTEGER,
 	author_position TEXT,
 	is_corresponding INTEGER DEFAULT 0,
 	raw_affiliation_string TEXT,
@@ -177,9 +212,9 @@ CREATE TABLE work_authors (
 
 create_table_safe(con, "work_author_institutions", "
 CREATE TABLE work_author_institutions (
-	work_id TEXT,
-	author_id TEXT,
-	inst_id TEXT,
+	work_id INTEGER,
+	author_id INTEGER,
+	inst_id INTEGER,
 	PRIMARY KEY (work_id, author_id, inst_id),
 	FOREIGN KEY (work_id) REFERENCES works(work_id),
 	FOREIGN KEY (author_id) REFERENCES authors(author_id),
@@ -188,8 +223,8 @@ CREATE TABLE work_author_institutions (
 
 create_table_safe(con, "author_institutions", "
 CREATE TABLE author_institutions (
-	author_id TEXT,
-	inst_id TEXT,
+	author_id INTEGER,
+	inst_id INTEGER,
 	n_works INTEGER DEFAULT 0,
 	PRIMARY KEY (author_id, inst_id),
 	FOREIGN KEY (author_id) REFERENCES authors(author_id),
@@ -198,7 +233,7 @@ CREATE TABLE author_institutions (
 
 create_table_safe(con, "author_countries", "
 CREATE TABLE author_countries (
-	author_id TEXT,
+	author_id INTEGER,
 	country_code TEXT,
 	n_works INTEGER DEFAULT 0,
 	PRIMARY KEY (author_id, country_code),
@@ -207,8 +242,8 @@ CREATE TABLE author_countries (
 
 create_table_safe(con, "work_topics", "
 CREATE TABLE work_topics (
-	work_id TEXT,
-	topic_id TEXT,
+	work_id INTEGER,
+	topic_id INTEGER,
 	score REAL,
 	is_primary INTEGER DEFAULT 0,
 	PRIMARY KEY (work_id, topic_id),
@@ -218,8 +253,8 @@ CREATE TABLE work_topics (
 
 create_table_safe(con, "work_institutions", "
 CREATE TABLE work_institutions (
-	work_id TEXT,
-	inst_id TEXT,
+	work_id INTEGER,
+	inst_id INTEGER,
 	PRIMARY KEY (work_id, inst_id),
 	FOREIGN KEY (work_id) REFERENCES works(work_id),
 	FOREIGN KEY (inst_id) REFERENCES institutions(inst_id)
@@ -228,20 +263,11 @@ CREATE TABLE work_institutions (
 create_table_safe(con, "funding", "
 CREATE TABLE funding (
 	funding_id INTEGER PRIMARY KEY AUTOINCREMENT,
-	work_id TEXT,
+	work_id INTEGER,
 	funder_name TEXT,
 	funder_id TEXT,
 	award_id TEXT,
 	funding_text TEXT,
-	FOREIGN KEY (work_id) REFERENCES works(work_id)
-)")
-
-create_table_safe(con, "keywords", "
-CREATE TABLE keywords (
-	keyword_id INTEGER PRIMARY KEY AUTOINCREMENT,
-	work_id TEXT,
-	keyword TEXT,
-	keyword_type TEXT CHECK(keyword_type IN ('author', 'index_scopus', 'plus_wos', 'topic_derived')),
 	FOREIGN KEY (work_id) REFERENCES works(work_id)
 )")
 
@@ -266,6 +292,15 @@ subfields_data <- dbGetQuery(topics_con, "SELECT * FROM subfields")
 topics_data <- dbGetQuery(topics_con, "SELECT * FROM topics") %>% select(-cited_by_count)
 dbDisconnect(topics_con)
 
+# Convert IDs to integer (strip letter prefixes)
+domains_data$domain_id <- strip_id_prefix(domains_data$domain_id, "D")
+fields_data$field_id <- strip_id_prefix(fields_data$field_id, "F")
+fields_data$domain_id <- strip_id_prefix(fields_data$domain_id, "D")
+subfields_data$subfield_id <- strip_id_prefix(subfields_data$subfield_id, "S")
+subfields_data$field_id <- strip_id_prefix(subfields_data$field_id, "F")
+topics_data$topic_id <- strip_id_prefix(topics_data$topic_id, "T")
+topics_data$subfield_id <- strip_id_prefix(topics_data$subfield_id, "S")
+
 dbWriteTable(con, "domains", domains_data, append = TRUE)
 dbWriteTable(con, "fields", fields_data, append = TRUE)
 dbWriteTable(con, "subfields", subfields_data, append = TRUE)
@@ -282,6 +317,9 @@ works_file <- file.path(data_path, "publications_full_dataset_2000-2024.parquet"
 if (file.exists(works_file)) {
 	works_dt <- as.data.table(read_parquet_safe(works_file))
 	message(paste("Loaded", nrow(works_dt), "works"))
+
+	# Convert work_id to integer (strip 'W' prefix)
+	works_dt[, work_id := strip_id_prefix(work_id, "W")]
 
 	works_insert <- works_dt[, .(
 		work_id = work_id,
@@ -300,9 +338,13 @@ if (file.exists(works_file)) {
 		first_page = NA_character_,
 		last_page = NA_character_,
 		pdf_url = NA_character_,
-		landing_page_url = NA_character_
+		landing_page_url = NA_character_,
+		author_keywords = if("author_keywords" %in% names(works_dt)) author_keywords else NA_character_,
+		keywords = if("keywords" %in% names(works_dt)) keywords else NA_character_,
+		index_keywords_scopus = if("index_keywords_scopus" %in% names(works_dt)) index_keywords_scopus else NA_character_,
+		keywords_plus_wos = if("keywords_plus_wos" %in% names(works_dt)) keywords_plus_wos else NA_character_
 	)]
-	works_insert <- works_insert[!is.na(work_id) & work_id != ""]
+	works_insert <- works_insert[!is.na(work_id)]
 	dbWriteTable(con, "works", works_insert, append = TRUE)
 	message(paste("Inserted", nrow(works_insert), "works"))
 } else {
@@ -322,11 +364,20 @@ if (file.exists(authors_flat_file)) {
 	authors_flat_dt <- as.data.table(read_parquet_safe(authors_flat_file))
 	message(paste("Processing authors and work-author relationships from", nrow(authors_flat_dt), "records"))
 
+	# Convert IDs to integer (strip letter prefixes)
+	authors_flat_dt[, `:=`(
+		work_id = strip_id_prefix(work_id, "W"),
+		author_id = strip_id_prefix(author_id, "A")
+	)]
+
 	# Load both author files and merge them before inserting
 	authors_summary_file <- file.path(data_path, "authors_summary_with_lists.parquet")
 	if (file.exists(authors_summary_file)) {
 		authors_summary_dt <- as.data.table(read_parquet_safe(authors_summary_file))
 		message(paste("Loaded", nrow(authors_summary_dt), "authors from summary file"))
+		
+		# Convert author_id to integer
+		authors_summary_dt[, author_id := strip_id_prefix(author_id, "A")]
 		
 		# Merge flat data with summary data to get complete author info
 		if (!all(c("author_id", "display_name") %in% names(authors_flat_dt))) {
@@ -334,7 +385,7 @@ if (file.exists(authors_flat_file)) {
 		}
 		
 		# Get minimal author data from flat file
-		min_auth <- authors_flat_dt[!is.na(author_id) & author_id != "", .(author_id, display_name)]
+		min_auth <- authors_flat_dt[!is.na(author_id), .(author_id, display_name)]
 		min_auth <- min_auth[!duplicated(author_id)]
 		
 		# Merge with summary data to get collaboration fields
@@ -366,7 +417,7 @@ if (file.exists(authors_flat_file)) {
 		if (!all(c("author_id", "display_name") %in% names(authors_flat_dt))) {
 			if ("name" %in% names(authors_flat_dt)) authors_flat_dt[, display_name := name]
 		}
-		min_auth <- authors_flat_dt[!is.na(author_id) & author_id != "", .(author_id, display_name)]
+		min_auth <- authors_flat_dt[!is.na(author_id), .(author_id, display_name)]
 		min_auth <- min_auth[!duplicated(author_id)]
 		if (nrow(min_auth) > 0) {
 			min_auth[, `:=`(orcid = NA_character_, works_count = 0L, collab_status = NA_character_, total_institutions = 0L, total_countries = 0L, n_corresponding_works = 0L)]
@@ -418,11 +469,14 @@ if (file.exists(wil_file)) {
 	wil_dt <- as.data.table(read_parquet_safe(wil_file))
 	message(paste("Loaded", nrow(wil_dt), "work-institution links"))
 
-	# Normalize work_id format just in case
-	wil_dt[, work_id := stringr::str_remove_all(work_id, "https://openalex\\.org/")]
+	# Convert IDs to integer (strip letter prefixes)
+	wil_dt[, `:=`(
+		work_id = strip_id_prefix(work_id, "W"),
+		inst_id = strip_id_prefix(inst_id, "I")
+	)]
 
     # Aggregate institution attributes per inst_id to avoid UNIQUE PK conflicts
-    insts <- wil_dt[!is.na(inst_id) & inst_id != "",
+    insts <- wil_dt[!is.na(inst_id),
         .(
             ror = { tmp <- ror[!is.na(ror) & ror != ""]; if (length(tmp)) tmp[1] else NA_character_ },
             display_name = { tmp <- institution_name[!is.na(institution_name) & institution_name != ""]; if (length(tmp)) tmp[1] else NA_character_ },
@@ -431,7 +485,7 @@ if (file.exists(wil_file)) {
         by = inst_id
     ]
     # Insert only missing inst_ids
-    existing_inst <- tryCatch(dbGetQuery(con, "SELECT inst_id FROM institutions")$inst_id, error = function(e) character(0))
+    existing_inst <- tryCatch(dbGetQuery(con, "SELECT inst_id FROM institutions")$inst_id, error = function(e) numeric(0))
     insts <- insts[!inst_id %in% existing_inst]
     if (nrow(insts) > 0) {
         DBI::dbBegin(con)
@@ -461,19 +515,19 @@ if (dir.exists(parts_dir)) {
 	part_files <- list.files(parts_dir, pattern = "^part_.*\\.parquet$", full.names = TRUE)
 	if (length(part_files) > 0) {
 		expanded_dt <- data.table::rbindlist(lapply(part_files, read_parquet_safe), use.names = TRUE, fill = TRUE)
-		# Ensure types
+		# Convert IDs to integer (strip letter prefixes)
 		expanded_dt[, `:=`(
-			work_id = as.character(work_id),
-			author_id = as.character(author_id),
-			inst_id = as.character(inst_id),
+			work_id = strip_id_prefix(work_id, "W"),
+			author_id = strip_id_prefix(author_id, "A"),
+			inst_id = strip_id_prefix(inst_id, "I"),
 			country_code = as.character(country_code)
 		)]
-		expanded_dt <- expanded_dt[!is.na(inst_id) & inst_id != "" & !is.na(author_id) & author_id != ""]
+		expanded_dt <- expanded_dt[!is.na(inst_id) & !is.na(author_id)]
 
 		# Ensure all referenced parents exist
-		existing_works <- tryCatch(dbGetQuery(con, "SELECT work_id FROM works")$work_id, error = function(e) character(0))
-		existing_authors <- tryCatch(dbGetQuery(con, "SELECT author_id FROM authors")$author_id, error = function(e) character(0))
-		existing_insts <- tryCatch(dbGetQuery(con, "SELECT inst_id FROM institutions")$inst_id, error = function(e) character(0))
+		existing_works <- tryCatch(dbGetQuery(con, "SELECT work_id FROM works")$work_id, error = function(e) numeric(0))
+		existing_authors <- tryCatch(dbGetQuery(con, "SELECT author_id FROM authors")$author_id, error = function(e) numeric(0))
+		existing_insts <- tryCatch(dbGetQuery(con, "SELECT inst_id FROM institutions")$inst_id, error = function(e) numeric(0))
 
 		# Filter to valid FK rows
 		expanded_dt <- expanded_dt[
@@ -519,8 +573,11 @@ if (file.exists(wtl_file)) {
 	wtl_dt <- as.data.table(read_parquet_safe(wtl_file))
 	message(paste("Loaded", nrow(wtl_dt), "work-topic links"))
 
-	# Normalize work_id format just in case
-	wtl_dt[, work_id := stringr::str_remove_all(work_id, "https://openalex\\.org/")]
+	# Convert IDs to integer (strip letter prefixes)
+	wtl_dt[, `:=`(
+		work_id = strip_id_prefix(work_id, "W"),
+		topic_id = strip_id_prefix(topic_id, "T")
+	)]
 	wtl_dt <- wtl_dt[, .(work_id, topic_id, score = as.numeric(topic_score))]
 	wtl_dt[, is_primary := 0L]
 	existing_works <- dbGetQuery(con, "SELECT work_id FROM works")$work_id
@@ -533,49 +590,17 @@ if (file.exists(wtl_file)) {
 	message("Work-topic links parquet not found:", wtl_file)
 }
 
-# ===== 8. KEYWORDS (optional, if present in works parquet) =====
-
-if (exists("works_dt")) {
-	message("Processing keywords...")
-	if ("author_keywords" %in% names(works_dt)) {
-		author_kw <- works_dt[!is.na(author_keywords), .(
-			work_id = work_id,
-			keyword = unlist(strsplit(author_keywords, ";|,"))
-		), by = work_id]
-		author_kw[, keyword_type := "author"]
-		author_kw[, keyword := trimws(keyword)]
-		author_kw <- author_kw[keyword != ""]
-		if (nrow(author_kw) > 0) dbWriteTable(con, "keywords", author_kw[, .(work_id, keyword, keyword_type)], append = TRUE)
-	}
-	if ("index_keywords_scopus" %in% names(works_dt)) {
-		index_kw <- works_dt[!is.na(index_keywords_scopus), .(
-			work_id = work_id,
-			keyword = unlist(strsplit(index_keywords_scopus, ";|,"))
-		), by = work_id]
-		index_kw[, keyword_type := "index_scopus"]
-		index_kw[, keyword := trimws(keyword)]
-		index_kw <- index_kw[keyword != ""]
-		if (nrow(index_kw) > 0) dbWriteTable(con, "keywords", index_kw[, .(work_id, keyword, keyword_type)], append = TRUE)
-	}
-	if ("keywords_plus_wos" %in% names(works_dt)) {
-		plus_kw <- works_dt[!is.na(keywords_plus_wos), .(
-			work_id = work_id,
-			keyword = unlist(strsplit(keywords_plus_wos, ";|,"))
-		), by = work_id]
-		plus_kw[, keyword_type := "plus_wos"]
-		plus_kw[, keyword := trimws(keyword)]
-		plus_kw <- plus_kw[keyword != ""]
-		if (nrow(plus_kw) > 0) dbWriteTable(con, "keywords", plus_kw[, .(work_id, keyword, keyword_type)], append = TRUE)
-	}
-}
-
-# ===== 9. INDEXES =====
+# ===== 8. INDEXES =====
 
 message("\nCreating indexes for performance...")
 index_statements <- c(
 	"CREATE INDEX idx_work_year ON works(publication_year)",
 	"CREATE INDEX idx_work_doi ON works(doi)",
 	"CREATE INDEX idx_work_cited ON works(cited_by_count)",
+	"CREATE INDEX idx_work_author_keywords ON works(author_keywords)",
+	"CREATE INDEX idx_work_keywords ON works(keywords)",
+	"CREATE INDEX idx_work_index_keywords_scopus ON works(index_keywords_scopus)",
+	"CREATE INDEX idx_work_keywords_plus_wos ON works(keywords_plus_wos)",
 	"CREATE INDEX idx_author_name ON authors(display_name)",
 	"CREATE INDEX idx_author_collab ON authors(collab_status)",
 	"CREATE INDEX idx_ai_author ON author_institutions(author_id)",
@@ -593,15 +618,13 @@ index_statements <- c(
 	"CREATE INDEX idx_wi_work ON work_institutions(work_id)",
 	"CREATE INDEX idx_wi_inst ON work_institutions(inst_id)",
 	"CREATE INDEX idx_wt_work ON work_topics(work_id)",
-	"CREATE INDEX idx_wt_topic ON work_topics(topic_id)",
-	"CREATE INDEX idx_kw_work ON keywords(work_id)",
-	"CREATE INDEX idx_kw_keyword ON keywords(keyword)"
+	"CREATE INDEX idx_wt_topic ON work_topics(topic_id)"
 )
 for (idx_stmt in index_statements) {
 	tryCatch({ dbExecute(con, idx_stmt) }, error = function(e) { message(paste("Index might already exist:", e$message)) })
 }
 
-# ===== 10. VIEWS =====
+# ===== 9. VIEWS =====
 
 message("\nCreating analytical views...")
 dbExecute(con, "DROP VIEW IF EXISTS indo_swiss_works")
@@ -654,7 +677,7 @@ JOIN work_topics wt ON w.work_id = wt.work_id
 JOIN topics t ON wt.topic_id = t.topic_id
 ")
 
-# ===== 11. LOG & SUMMARY =====
+# ===== 10. LOG & SUMMARY =====
 
 update_log <- data.table(
 	update_type = "initial_load",
@@ -662,7 +685,7 @@ update_log <- data.table(
 	end_date = Sys.time(),
 	records_added = dbGetQuery(con, "SELECT COUNT(*) as n FROM works")$n,
 	update_source = "parquet_files_and_openalex_topics",
-	notes = "Initial database creation using inst_id, work mappings, and OpenAlex topics hierarchy"
+	notes = "Initial database creation using integer primary keys (stripped letter prefixes) and OpenAlex topics hierarchy"
 )
 dbWriteTable(con, "update_log", update_log, append = TRUE)
 
